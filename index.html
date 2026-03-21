@@ -38,7 +38,6 @@ button { font-family: inherit; cursor: pointer; }
 .chart-container { margin-top: 16px; width: 100%; }
 .chart-container svg { display: block; width: 100%; height: 320px; }
 
-/* ツールチップは下に表示 */
 .tip-wrap { position: relative; display: inline; }
 .tip-trigger { border-bottom: 1px dashed #58a6ff; color: #58a6ff; cursor: pointer; }
 .tip-box { display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 200;
@@ -67,11 +66,13 @@ button { font-family: inherit; cursor: pointer; }
 
 <div class="tabs">
   <button class="tab-btn active" onclick="switchTab('today',this)">🏠 今日の結論</button>
+  <button class="tab-btn" onclick="switchTab('japan',this)">🇯🇵 日本の視点</button>
   <button class="tab-btn" onclick="switchTab('detail',this)">📊 指標詳細</button>
   <button class="tab-btn" onclick="switchTab('glossary',this)">📖 用語集</button>
 </div>
 
 <div class="content" id="tab-today"><div class="loading-msg mono">データを取得中...</div></div>
+<div class="content hidden" id="tab-japan"></div>
 <div class="content hidden" id="tab-detail"></div>
 <div class="content hidden" id="tab-glossary"></div>
 
@@ -110,6 +111,13 @@ var WT  = { us_spread:3, us_ig:2, us_hy:2, jp_spread:2, vix:1, dxy:1, usdjpy:1 }
 var SC  = { spring:100, summer:65, autumn:30, winter:0 };
 var PRI = ["winter","autumn","summer","spring"];
 
+// 米国のみで判定
+var US_RULES = { us_spread:RULES.us_spread, us_ig:RULES.us_ig, us_hy:RULES.us_hy, vix:RULES.vix, dxy:RULES.dxy };
+var US_WT    = { us_spread:3, us_ig:2, us_hy:2, vix:1, dxy:1 };
+// 日本のみで判定
+var JP_RULES = { jp_spread:RULES.jp_spread, usdjpy:RULES.usdjpy };
+var JP_WT    = { jp_spread:3, usdjpy:1 };
+
 var INDS = [
   { key:"us_spread", label:"景気の先行指標",     sub:"米・長短金利差（10年−2年）",        term:"長短金利差",
     ex:function(v){ return v<0?v.toFixed(2)+"% ─ マイナス（逆イールド）。景気後退の前兆。":v<0.5?v.toFixed(2)+"% ─ ゼロに近く要注意。":v<1.5?v.toFixed(2)+"% ─ プラスだが警戒が必要。":v.toFixed(2)+"% ─ 健全。景気拡大のサイン。"; }, r1:1.0, r2:0, unit:"%" },
@@ -128,16 +136,77 @@ var INDS = [
 ];
 
 function gsn(key,v){ return RULES[key]?RULES[key](v):"spring"; }
-function overall(data){
+
+function calcSeason(data, rules, weights){
   var arr=[];
-  Object.keys(RULES).forEach(function(k){ var s=data[k]; if(s&&s.length) arr.push(gsn(k,s[s.length-1].value)); });
+  Object.keys(rules).forEach(function(k){ var s=data[k]; if(s&&s.length) arr.push(rules[k](s[s.length-1].value)); });
   for(var i=0;i<PRI.length;i++){ if(arr.indexOf(PRI[i])>=0) return PRI[i]; }
   return "spring";
 }
-function envScore(data){
+
+function calcScore(data, rules, weights){
   var tw=0,ts=0;
-  Object.keys(WT).forEach(function(k){ var s=data[k]; if(!s||!s.length) return; ts+=SC[gsn(k,s[s.length-1].value)]*WT[k]; tw+=WT[k]; });
+  Object.keys(weights).forEach(function(k){ var s=data[k]; if(!s||!s.length) return; ts+=SC[rules[k](s[s.length-1].value)]*weights[k]; tw+=weights[k]; });
   return tw?Math.round(ts/tw):50;
+}
+
+function overall(data){ return calcSeason(data, RULES, WT); }
+function envScore(data){ return calcScore(data, RULES, WT); }
+
+// ─── 日本版チェックリスト ────────────────────────────────────
+function jpChecklist(data){
+  var jpSea  = calcSeason(data, JP_RULES, JP_WT);
+  var usSea  = calcSeason(data, US_RULES, US_WT);
+  var jpSpv  = (data.jp_spread&&data.jp_spread.length)?data.jp_spread[data.jp_spread.length-1].value:null;
+  var usdjpv = (data.usdjpy&&data.usdjpy.length)?data.usdjpy[data.usdjpy.length-1].value:null;
+
+  var items = [];
+
+  // 日銀サイクル判定
+  if(jpSpv!==null){
+    if(jpSpv>1.0){
+      items.push({ ok:true,  text:"長短金利差が拡大中（"+jpSpv.toFixed(2)+"%）。日銀の利上げ余地あり。銀行株・金融セクターに追い風。" });
+    } else if(jpSpv>0){
+      items.push({ ok:null,  text:"長短金利差がフラット化（"+jpSpv.toFixed(2)+"%）。日銀の次の一手を慎重に見極める局面。" });
+    } else {
+      items.push({ ok:false, text:"日本も逆イールド（"+jpSpv.toFixed(2)+"%）。金融環境の急速な引き締まりに注意。" });
+    }
+  }
+
+  // 円安円高判定
+  if(usdjpv!==null){
+    if(usdjpv>155){
+      items.push({ ok:false, text:"超円安水準（"+usdjpv.toFixed(0)+"円）。輸入コスト上昇・物価高が続きやすい。輸出企業には有利だが介入リスクあり。" });
+      items.push({ ok:true,  text:"円安の恩恵：輸出企業・インバウンド関連株が有利な局面。" });
+    } else if(usdjpv>145){
+      items.push({ ok:null,  text:"円安が継続（"+usdjpv.toFixed(0)+"円）。米国事業の円換算収益は有利。輸入コストは引き続き高止まり。" });
+    } else if(usdjpv>135){
+      items.push({ ok:true,  text:"円相場は安定圏（"+usdjpv.toFixed(0)+"円）。為替リスクが低く、事業計画を立てやすい水準。" });
+    } else {
+      items.push({ ok:false, text:"円高進行（"+usdjpv.toFixed(0)+"円）。米国売上の円換算が目減り。輸出企業・外貨資産には逆風。" });
+    }
+  }
+
+  // 米日の季節差
+  if(usSea !== jpSea){
+    items.push({ ok:null, text:"⚠ 米国（"+S[usSea].ja+"）と日本（"+S[jpSea].ja+"）の景気サイクルがズレています。米国に連動しない日本固有の動きに注目。" });
+  } else {
+    items.push({ ok:true, text:"米国と日本の景気サイクルが一致（"+S[usSea].ja+"）。グローバルな方向感と国内動向が同じ方向を向いています。" });
+  }
+
+  // 日銀利上げ局面の注意
+  if(jpSpv!==null && jpSpv>0 && jpSpv<1.2){
+    items.push({ ok:false, text:"日銀の利上げサイクル中は住宅ローン・変動金利の借入コストが上昇しやすい。固定金利への切り替えを検討する局面。" });
+    items.push({ ok:true,  text:"利上げ局面では預金金利も上昇。現金・短期債の利回りが改善するため、流動性資産の魅力が高まります。" });
+  }
+
+  // 米国が冬・秋のとき
+  if(usSea==="winter"||usSea==="autumn"){
+    items.push({ ok:false, text:"米国が"+S[usSea].ja+"のサイクル。米国景気の影響を受けやすい輸出関連株・外需企業は慎重に。" });
+    items.push({ ok:true,  text:"内需・ディフェンシブセクター（食品・医療・生活必需品）が相対的に安定しやすい局面。" });
+  }
+
+  return { season: jpSea, items: items };
 }
 
 function gauge(sc){
@@ -157,79 +226,85 @@ function gauge(sc){
     +'</svg>';
 }
 
+function seasonCard(flag, season, score, label){
+  var cfg=S[season];
+  var sc2=score>=75?"spring":score>=50?"summer":score>=25?"autumn":"winter";
+  var gc=S[sc2].color;
+  var a=((score/100)*180-180)*Math.PI/180;
+  var nx=(50+42*Math.cos(a)).toFixed(1), ny=(54+42*Math.sin(a)).toFixed(1);
+  var lx=(50+30*Math.cos(a)).toFixed(1), ly=(54+30*Math.sin(a)).toFixed(1);
+  var miniGauge='<svg width="100" height="62" viewBox="0 0 100 62">'
+    +'<path d="M 8 54 A 42 42 0 0 1 92 54" stroke="#1c2128" stroke-width="8" fill="none" stroke-linecap="round"/>'
+    +'<path d="M 8 54 A 42 42 0 0 1 '+nx+' '+ny+'" stroke="'+gc+'" stroke-width="8" fill="none" stroke-linecap="round"/>'
+    +'<line x1="50" y1="54" x2="'+lx+'" y2="'+ly+'" stroke="'+gc+'" stroke-width="2" stroke-linecap="round"/>'
+    +'<circle cx="50" cy="54" r="4" fill="'+gc+'"/>'
+    +'<text x="50" y="42" text-anchor="middle" font-family="IBM Plex Mono" font-size="13" font-weight="700" fill="'+gc+'">'+score+'</text>'
+    +'</svg>';
+  return '<div style="background:'+cfg.bg+';border:1px solid '+cfg.border+';border-radius:10px;padding:16px 18px;flex:1;min-width:200px">'
+    +'<div style="font-size:9px;color:'+cfg.color+';letter-spacing:0.12em;margin-bottom:8px;opacity:0.8" class="mono">'+flag+' '+label+'</div>'
+    +'<div style="display:flex;align-items:center;gap:12px">'
+      +'<div style="font-size:36px;line-height:1">'+cfg.emoji+'</div>'
+      +'<div>'
+        +'<div style="font-size:26px;font-weight:800;color:'+cfg.color+';line-height:1">'+cfg.ja+'</div>'
+        +'<div style="font-size:11px;color:#8b949e;margin-top:3px">'+cfg.tagline+'</div>'
+      +'</div>'
+      +miniGauge
+    +'</div>'
+  +'</div>';
+}
+
 function buildChart(series, color, r1, r2, containerId){
-  var container = document.getElementById(containerId);
+  var container=document.getElementById(containerId);
   if(!container) return;
-  container.innerHTML = "";
-  if(!series || series.length < 2){
-    container.innerHTML = '<div style="height:320px;display:flex;align-items:center;justify-content:center;color:#484f58;font-size:12px">データなし</div>';
+  container.innerHTML="";
+  if(!series||series.length<2){
+    container.innerHTML='<div style="height:320px;display:flex;align-items:center;justify-content:center;color:#484f58;font-size:12px">データなし</div>';
     return;
   }
-  var ns = "http://www.w3.org/2000/svg";
-  var svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", "0 0 1000 320");
-  svg.style.width = "100%";
-  svg.style.height = "320px";
-  svg.style.display = "block";
-
-  var pl=55, pr=10, pt=12, pb=36, W=1000, H=320, cw=W-pl-pr, ch=H-pt-pb;
-  var vals = series.map(function(d){ return d.value; });
-  var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals), rng = mx-mn||1;
-  mn -= rng*0.1; mx += rng*0.1; rng = mx-mn;
-
-  function px(i){ return pl + (i/(series.length-1))*cw; }
-  function py(v){ return pt + ch - ((v-mn)/rng)*ch; }
-
-  var bg = document.createElementNS(ns,"rect");
-  bg.setAttribute("x",pl); bg.setAttribute("y",pt);
-  bg.setAttribute("width",cw); bg.setAttribute("height",ch);
-  bg.setAttribute("fill","rgba(255,255,255,0.015)"); bg.setAttribute("rx","3");
-  svg.appendChild(bg);
-
-  for(var gi=0; gi<=4; gi++){
-    var gv = mn+(gi/4)*rng, gy = py(gv);
-    var gl = document.createElementNS(ns,"line");
-    gl.setAttribute("x1",pl); gl.setAttribute("y1",gy.toFixed(1));
-    gl.setAttribute("x2",pl+cw); gl.setAttribute("y2",gy.toFixed(1));
-    gl.setAttribute("stroke","#21262d"); gl.setAttribute("stroke-width","1");
-    svg.appendChild(gl);
-    var yt = document.createElementNS(ns,"text");
-    yt.setAttribute("x",(pl-5).toString()); yt.setAttribute("y",(gy+4).toFixed(1));
-    yt.setAttribute("text-anchor","end"); yt.setAttribute("font-size","11");
-    yt.setAttribute("fill","#6e7681"); yt.setAttribute("font-family","IBM Plex Mono");
-    yt.textContent = gv.toFixed(2);
-    svg.appendChild(yt);
+  var ns="http://www.w3.org/2000/svg";
+  var svg=document.createElementNS(ns,"svg");
+  svg.setAttribute("viewBox","0 0 1000 320");
+  svg.style.width="100%"; svg.style.height="320px"; svg.style.display="block";
+  var pl=55,pr=10,pt=12,pb=36,W=1000,H=320,cw=W-pl-pr,ch=H-pt-pb;
+  var vals=series.map(function(d){return d.value;});
+  var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals), rng=mx-mn||1;
+  mn-=rng*0.1; mx+=rng*0.1; rng=mx-mn;
+  function px(i){return pl+(i/(series.length-1))*cw;}
+  function py(v){return pt+ch-((v-mn)/rng)*ch;}
+  var bg=document.createElementNS(ns,"rect");
+  bg.setAttribute("x",pl);bg.setAttribute("y",pt);bg.setAttribute("width",cw);bg.setAttribute("height",ch);
+  bg.setAttribute("fill","rgba(255,255,255,0.015)");bg.setAttribute("rx","3");svg.appendChild(bg);
+  for(var gi=0;gi<=4;gi++){
+    var gv=mn+(gi/4)*rng,gy=py(gv);
+    var gl=document.createElementNS(ns,"line");
+    gl.setAttribute("x1",pl);gl.setAttribute("y1",gy.toFixed(1));gl.setAttribute("x2",pl+cw);gl.setAttribute("y2",gy.toFixed(1));
+    gl.setAttribute("stroke","#21262d");gl.setAttribute("stroke-width","1");svg.appendChild(gl);
+    var yt=document.createElementNS(ns,"text");
+    yt.setAttribute("x",(pl-5).toString());yt.setAttribute("y",(gy+4).toFixed(1));
+    yt.setAttribute("text-anchor","end");yt.setAttribute("font-size","11");
+    yt.setAttribute("fill","#6e7681");yt.setAttribute("font-family","IBM Plex Mono");
+    yt.textContent=gv.toFixed(2);svg.appendChild(yt);
   }
-
   [[r1,"#fbbf24"],[r2,"#f87171"]].forEach(function(p){
     if(p[0]===null||p[0]===undefined) return;
-    var yy=py(p[0]); if(yy<pt||yy>pt+ch) return;
+    var yy=py(p[0]);if(yy<pt||yy>pt+ch) return;
     var rl=document.createElementNS(ns,"line");
-    rl.setAttribute("x1",pl); rl.setAttribute("y1",yy.toFixed(1));
-    rl.setAttribute("x2",pl+cw); rl.setAttribute("y2",yy.toFixed(1));
-    rl.setAttribute("stroke",p[1]); rl.setAttribute("stroke-width","1.5");
-    rl.setAttribute("stroke-dasharray","6,4"); rl.setAttribute("opacity","0.6");
+    rl.setAttribute("x1",pl);rl.setAttribute("y1",yy.toFixed(1));rl.setAttribute("x2",pl+cw);rl.setAttribute("y2",yy.toFixed(1));
+    rl.setAttribute("stroke",p[1]);rl.setAttribute("stroke-width","1.5");rl.setAttribute("stroke-dasharray","6,4");rl.setAttribute("opacity","0.6");
     svg.appendChild(rl);
   });
-
-  var ptStr = series.map(function(d,i){ return px(i).toFixed(1)+","+py(d.value).toFixed(1); }).join(" ");
-  var line = document.createElementNS(ns,"polyline");
-  line.setAttribute("points",ptStr);
-  line.setAttribute("fill","none");
-  line.setAttribute("stroke",color);
-  line.setAttribute("stroke-width","2.5");
-  line.setAttribute("stroke-linejoin","round");
-  line.setAttribute("stroke-linecap","round");
+  var ptStr=series.map(function(d,i){return px(i).toFixed(1)+","+py(d.value).toFixed(1);}).join(" ");
+  var line=document.createElementNS(ns,"polyline");
+  line.setAttribute("points",ptStr);line.setAttribute("fill","none");line.setAttribute("stroke",color);
+  line.setAttribute("stroke-width","2.5");line.setAttribute("stroke-linejoin","round");line.setAttribute("stroke-linecap","round");
   svg.appendChild(line);
-
-  for(var xi=0; xi<=5; xi++){
+  for(var xi=0;xi<=5;xi++){
     var idx=Math.round((xi/5)*(series.length-1));
     var xt=document.createElementNS(ns,"text");
-    xt.setAttribute("x",px(idx).toFixed(1)); xt.setAttribute("y",(H-8).toString());
-    xt.setAttribute("text-anchor","middle"); xt.setAttribute("font-size","11");
-    xt.setAttribute("fill","#6e7681"); xt.setAttribute("font-family","IBM Plex Mono");
-    xt.textContent = series[idx].date.slice(0,7);
-    svg.appendChild(xt);
+    xt.setAttribute("x",px(idx).toFixed(1));xt.setAttribute("y",(H-8).toString());
+    xt.setAttribute("text-anchor","middle");xt.setAttribute("font-size","11");
+    xt.setAttribute("fill","#6e7681");xt.setAttribute("font-family","IBM Plex Mono");
+    xt.textContent=series[idx].date.slice(0,7);svg.appendChild(xt);
   }
   container.appendChild(svg);
 }
@@ -237,8 +312,7 @@ function buildChart(series, color, r1, r2, containerId){
 var TC=0;
 function tip(term,label){
   if(!term||!GL[term]) return label;
-  var id="t"+(TC++);
-  var g=GL[term];
+  var id="t"+(TC++); var g=GL[term];
   return '<span class="tip-wrap">'
     +'<span class="tip-trigger" onclick="tg(\''+id+'\')">'+label+'</span>'
     +'<div class="tip-box" id="'+id+'">'
@@ -250,36 +324,31 @@ function tip(term,label){
     +'</div>'
   +'</span>';
 }
-function tg(id){ var e=document.getElementById(id); if(e) e.classList.toggle("open"); }
-function ct(id,ev){ var e=document.getElementById(id); if(e) e.classList.remove("open"); if(ev) ev.stopPropagation(); }
+function tg(id){var e=document.getElementById(id);if(e) e.classList.toggle("open");}
+function ct(id,ev){var e=document.getElementById(id);if(e) e.classList.remove("open");if(ev) ev.stopPropagation();}
 
 function switchTab(name,btn){
-  ["today","detail","glossary"].forEach(function(t){
+  ["today","japan","detail","glossary"].forEach(function(t){
     document.getElementById("tab-"+t).classList.toggle("hidden",t!==name);
   });
-  document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
+  document.querySelectorAll(".tab-btn").forEach(function(b){b.classList.remove("active");});
   if(btn) btn.classList.add("active");
 }
 
-var openKey = null;
+var openKey=null;
 function tdg(key){
   var body=document.getElementById("body-"+key), tglEl=document.getElementById("tg-"+key);
   if(!body) return;
   if(openKey===key){
-    body.classList.add("hidden");
-    if(tglEl) tglEl.textContent="▼ チャート";
-    openKey=null;
+    body.classList.add("hidden"); if(tglEl) tglEl.textContent="▼ チャート"; openKey=null;
   } else {
     if(openKey){
       var prev=document.getElementById("body-"+openKey), prevTg=document.getElementById("tg-"+openKey);
-      if(prev) prev.classList.add("hidden");
-      if(prevTg) prevTg.textContent="▼ チャート";
+      if(prev) prev.classList.add("hidden"); if(prevTg) prevTg.textContent="▼ チャート";
     }
-    body.classList.remove("hidden");
-    if(tglEl) tglEl.textContent="▲ 閉じる";
-    openKey=key;
+    body.classList.remove("hidden"); if(tglEl) tglEl.textContent="▲ 閉じる"; openKey=key;
     var m=null;
-    for(var i=0;i<INDS.length;i++){ if(INDS[i].key===key){ m=INDS[i]; break; } }
+    for(var i=0;i<INDS.length;i++){if(INDS[i].key===key){m=INDS[i];break;}}
     if(m&&CURRENT_DATA[key]){
       var sk=gsn(key,CURRENT_DATA[key][CURRENT_DATA[key].length-1].value);
       buildChart(CURRENT_DATA[key],S[sk].color,m.r1,m.r2,"chart-"+key);
@@ -288,25 +357,45 @@ function tdg(key){
 }
 
 function glg(id){
-  var el=document.getElementById(id), ar=document.getElementById("ar-"+id);
-  if(!el) return;
-  var h=el.classList.toggle("hidden");
-  if(ar) ar.textContent=h?"▼":"▲";
+  var el=document.getElementById(id),ar=document.getElementById("ar-"+id);
+  if(!el) return; var h=el.classList.toggle("hidden"); if(ar) ar.textContent=h?"▼":"▲";
 }
 
-var CURRENT_DATA = {};
+var CURRENT_DATA={};
 
-function renderAll(data, updated){
+function renderAll(data,updated){
   TC=0; CURRENT_DATA=data; openKey=null;
   if(updated) document.getElementById("updated-label").textContent=new Date(updated).toLocaleDateString("ja-JP")+" 更新";
 
-  var sea=overall(data), sc=envScore(data), cfg=S[sea];
+  var usSea  = calcSeason(data, US_RULES, US_WT);
+  var usScore = calcScore(data, US_RULES, US_WT);
+  var jpSea  = calcSeason(data, JP_RULES, JP_WT);
+  var jpScore = calcScore(data, JP_RULES, JP_WT);
+  var allSea  = overall(data);
+  var allSc   = envScore(data);
+  var cfg     = S[allSea];
+
   var usv=(data.us_spread&&data.us_spread.length)?data.us_spread[data.us_spread.length-1].value:0;
   var alertH=usv<=0
-    ?'<div style="padding:10px 14px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-size:12px;color:#f87171;margin-bottom:14px">🚨 逆イールド発生中 — '+tip("逆イールド","逆イールドとは？")+'</div>'
+    ?'<div style="padding:10px 14px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-size:12px;color:#f87171;margin-bottom:14px">🚨 米国 逆イールド発生中 — '+tip("逆イールド","逆イールドとは？")+'</div>'
     :usv<=1.0
-    ?'<div style="padding:10px 14px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-size:12px;color:#f87171;margin-bottom:14px">⚡ 第1警戒（長短金利差1%以下）</div>'
+    ?'<div style="padding:10px 14px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-size:12px;color:#f87171;margin-bottom:14px">⚡ 第1警戒（米・長短金利差1%以下）</div>'
     :"";
+
+  // 米日並列バナー
+  var parallelBanner='<div style="display:flex;gap:12px;flex-wrap:wrap">'
+    +seasonCard("🇺🇸","米国",usSea,usScore,"米国の景気サイクル")
+    +seasonCard("🇯🇵","日本",jpSea,jpScore,"日本の景気サイクル")
+    +'</div>';
+
+  // ズレ警告
+  var diffAlert="";
+  if(usSea!==jpSea){
+    diffAlert='<div style="padding:12px 16px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.2);border-radius:8px;font-size:12px;color:#58a6ff;line-height:1.9">'
+      +'💡 <strong>米国と日本でサイクルがズレています。</strong><br>'
+      +'米国は「'+S[usSea].ja+'」、日本は「'+S[jpSea].ja+'」。米国の動向が6〜12ヶ月遅れで日本に波及することが多い。日本固有の動きに注目しつつ、米国のサイクルが先に変わるタイミングに備えることが重要。'
+      +'</div>';
+  }
 
   var indH=INDS.map(function(m){
     var s=data[m.key]; if(!s||!s.length) return "";
@@ -321,42 +410,94 @@ function renderAll(data, updated){
     +'</div>';
   }).join("");
 
-  var seasH=["spring","summer","autumn","winter"].map(function(sk){
-    var sc2=S[sk], isN=sk===sea;
-    return '<div style="padding:12px 14px;border-radius:8px;background:'+(isN?sc2.bg:"rgba(0,0,0,0.2)")+';border:1px solid '+(isN?sc2.border:"#21262d")+'">'
-      +'<div style="font-size:18px;margin-bottom:4px">'+sc2.emoji+' <span style="font-size:14px;font-weight:700;color:'+sc2.color+'">'+sc2.ja+'</span>'
-      +(isN?' <span style="font-size:9px;color:'+sc2.color+'" class="mono">← 今ここ</span>':"")+'</div>'
-      +'<div style="font-size:11px;color:'+(isN?"#8b949e":"#6e7681")+';line-height:1.7">'+sc2.tagline+'</div>'
-    +'</div>';
-  }).join("");
-
   document.getElementById("tab-today").innerHTML=
-    '<div style="background:'+cfg.bg+';border:2px solid '+cfg.border+';border-radius:12px;padding:22px 24px">'
-      +'<div style="font-size:9px;color:'+cfg.color+';letter-spacing:0.18em;margin-bottom:8px;opacity:0.8" class="mono">今日の景気サイクル判定</div>'
-      +'<div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap">'
-        +'<div style="font-size:52px;line-height:1">'+cfg.emoji+'</div>'
-        +'<div><div style="font-size:36px;font-weight:800;color:'+cfg.color+';line-height:1">'+cfg.ja+'</div>'
-        +'<div style="font-size:14px;color:#8b949e;margin-top:4px">'+cfg.tagline+'</div></div>'
-        +gauge(sc)
-      +'</div>'
+    '<div style="background:'+cfg.bg+';border:2px solid '+cfg.border+';border-radius:12px;padding:20px 22px">'
+      +'<div style="font-size:9px;color:'+cfg.color+';letter-spacing:0.18em;margin-bottom:8px;opacity:0.8" class="mono">総合・景気サイクル判定</div>'
       +alertH
-      +'<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px 16px">'
-        +'<div style="font-size:10px;color:#6e7681;margin-bottom:6px" class="mono">▶ 今すべきこと</div>'
+      +parallelBanner
+      +diffAlert
+      +'<div style="margin-top:14px;background:rgba(0,0,0,0.3);border-radius:8px;padding:14px 16px">'
+        +'<div style="font-size:10px;color:#6e7681;margin-bottom:6px" class="mono">▶ 総合判定：今すべきこと</div>'
         +'<div style="font-size:13px;line-height:1.9">'+cfg.action+'</div>'
         +(cfg.warn?'<div style="font-size:12px;color:'+cfg.color+';margin-top:8px;opacity:0.9">⚠ '+cfg.warn+'</div>':"")
       +'</div>'
     +'</div>'
     +'<div class="card">'
-      +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">なぜ「'+cfg.ja+'」と判定されているのか？</div>'
-      +'<div style="font-size:12px;color:#8b949e;line-height:1.9;margin-bottom:16px">以下の7つの指標を総合して判定しています。青い下線の用語はタップすると解説が出ます。</div>'
+      +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">判定の根拠となる7指標</div>'
+      +'<div style="font-size:12px;color:#8b949e;line-height:1.9;margin-bottom:16px">青い下線の用語はタップすると解説が出ます。</div>'
       +'<div class="grid-2">'+indH+'</div>'
-    +'</div>'
-    +'<div class="card">'
-      +'<div style="font-size:13px;font-weight:700;margin-bottom:12px">景気の四季とは？</div>'
-      +'<div class="grid-4">'+seasH+'</div>'
-      +'<div style="margin-top:12px;font-size:11px;color:#6e7681;line-height:1.9">この四季の概念は堀井正孝「改訂版 金利を見れば投資はうまくいく」をベースにしています。景気は必ず春→夏→秋→冬→春とサイクルを繰り返します。</div>'
     +'</div>';
 
+  // 日本の視点タブ
+  TC=50;
+  var cl = jpChecklist(data);
+  var jpCfg = S[cl.season];
+  var clH = cl.items.map(function(item){
+    var icon = item.ok===true?"✅":item.ok===false?"⛔":"💡";
+    var col  = item.ok===true?"#e6edf3":item.ok===false?"#8b949e":"#58a6ff";
+    return '<div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-start">'
+      +'<span style="font-size:16px;flex-shrink:0;margin-top:1px">'+icon+'</span>'
+      +'<span style="font-size:13px;color:'+col+';line-height:1.8">'+item.text+'</span>'
+    +'</div>';
+  }).join("");
+
+  var jpSpv=(data.jp_spread&&data.jp_spread.length)?data.jp_spread[data.jp_spread.length-1].value:null;
+  var usdjpv=(data.usdjpy&&data.usdjpy.length)?data.usdjpy[data.usdjpy.length-1].value:null;
+
+  document.getElementById("tab-japan").innerHTML=
+    // 日本の季節バナー
+    '<div style="background:'+jpCfg.bg+';border:2px solid '+jpCfg.border+';border-radius:12px;padding:20px 22px">'
+      +'<div style="font-size:9px;color:'+jpCfg.color+';letter-spacing:0.18em;margin-bottom:8px;opacity:0.8" class="mono">🇯🇵 日本の景気サイクル判定</div>'
+      +'<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">'
+        +'<div style="font-size:48px;line-height:1">'+jpCfg.emoji+'</div>'
+        +'<div><div style="font-size:32px;font-weight:800;color:'+jpCfg.color+';line-height:1">'+jpCfg.ja+'</div>'
+        +'<div style="font-size:13px;color:#8b949e;margin-top:4px">'+jpCfg.tagline+'</div></div>'
+      +'</div>'
+    +'</div>'
+    // 米日比較
+    +'<div class="card">'
+      +'<div style="font-size:13px;font-weight:700;margin-bottom:12px">🇺🇸 米国 vs 🇯🇵 日本 ─ 今の位置</div>'
+      +'<div style="display:flex;gap:12px;flex-wrap:wrap">'
+        +'<div style="flex:1;min-width:180px;padding:14px;background:#161b22;border-radius:8px;border:1px solid '+S[usSea].border+'">'
+          +'<div style="font-size:9px;color:#6e7681;margin-bottom:6px" class="mono">🇺🇸 米国（世界の先行指標）</div>'
+          +'<div style="font-size:24px;font-weight:800;color:'+S[usSea].color+'">'+S[usSea].emoji+' '+S[usSea].ja+'</div>'
+          +'<div style="font-size:11px;color:#8b949e;margin-top:4px;line-height:1.7">'+S[usSea].tagline+'</div>'
+          +(jpSpv!==null?'<div style="margin-top:8px;font-size:10px;color:#6e7681" class="mono">スコア '+usScore+'/100</div>':"")
+        +'</div>'
+        +'<div style="flex:1;min-width:180px;padding:14px;background:#161b22;border-radius:8px;border:1px solid '+S[jpSea].border+'">'
+          +'<div style="font-size:9px;color:#6e7681;margin-bottom:6px" class="mono">🇯🇵 日本（独自サイクル）</div>'
+          +'<div style="font-size:24px;font-weight:800;color:'+S[jpSea].color+'">'+S[jpSea].emoji+' '+S[jpSea].ja+'</div>'
+          +'<div style="font-size:11px;color:#8b949e;margin-top:4px;line-height:1.7">'+S[jpSea].tagline+'</div>'
+          +(jpSpv!==null?'<div style="margin-top:8px;font-size:10px;color:#6e7681" class="mono">スコア '+jpScore+'/100</div>':"")
+        +'</div>'
+      +'</div>'
+      +(usSea!==jpSea?'<div style="margin-top:12px;padding:10px 14px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.2);border-radius:8px;font-size:11px;color:#58a6ff;line-height:1.8">💡 サイクルがズレています。米国の動向は6〜12ヶ月遅れで日本に波及することが多い。</div>':"")
+    +'</div>'
+    // 主要指標
+    +'<div class="card">'
+      +'<div style="font-size:13px;font-weight:700;margin-bottom:14px">日本の主要数値</div>'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
+        +(jpSpv!==null?'<div style="flex:1;min-width:160px;padding:14px;background:#161b22;border-radius:8px;border:1px solid '+S[RULES.jp_spread(jpSpv)].border+'">'
+          +'<div style="font-size:9px;color:#6e7681;margin-bottom:4px">JGB10年 − コールレート</div>'
+          +'<div style="font-size:24px;font-weight:700;color:'+S[RULES.jp_spread(jpSpv)].color+'" class="mono">'+jpSpv.toFixed(2)+'%</div>'
+          +'<div style="font-size:10px;color:#8b949e;margin-top:4px">長短金利差</div>'
+        +'</div>':"")
+        +(usdjpv!==null?'<div style="flex:1;min-width:160px;padding:14px;background:#161b22;border-radius:8px;border:1px solid '+S[RULES.usdjpy(usdjpv)].border+'">'
+          +'<div style="font-size:9px;color:#6e7681;margin-bottom:4px">USD/JPY</div>'
+          +'<div style="font-size:24px;font-weight:700;color:'+S[RULES.usdjpy(usdjpv)].color+'" class="mono">'+usdjpv.toFixed(1)+'円</div>'
+          +'<div style="font-size:10px;color:#8b949e;margin-top:4px">ドル円レート</div>'
+        +'</div>':"")
+      +'</div>'
+    +'</div>'
+    // チェックリスト
+    +'<div style="background:'+jpCfg.bg+';border:1px solid '+jpCfg.border+';border-radius:10px;padding:20px">'
+      +'<div style="font-size:9px;color:'+jpCfg.color+';letter-spacing:0.14em;margin-bottom:10px;opacity:0.8" class="mono">🇯🇵 日本版 投資チェックリスト</div>'
+      +'<div style="font-size:13px;font-weight:700;color:#e6edf3;margin-bottom:14px">現在の日本サイクル（'+jpCfg.ja+'）で意識すること</div>'
+      +clH
+      +'<div style="margin-top:14px;font-size:9px;color:#484f58;line-height:1.9" class="mono">✅ 有利 · ⛔ 注意 · 💡 情報 ─ 参考情報であり投資助言ではありません</div>'
+    +'</div>';
+
+  // 指標詳細タブ
   TC=100;
   var detH=INDS.map(function(m){
     var s=data[m.key]; if(!s||!s.length) return "";
@@ -380,11 +521,10 @@ function renderAll(data, updated){
       +'</div>'
     +'</div>';
   }).join("");
-
   document.getElementById("tab-detail").innerHTML=
-    '<div class="card" style="padding:12px 16px"><div style="font-size:12px;color:#8b949e;line-height:1.9">各指標をクリックするとチャートが開きます。</div></div>'
-    +detH;
+    '<div class="card" style="padding:12px 16px"><div style="font-size:12px;color:#8b949e;line-height:1.9">各指標をクリックするとチャートが開きます。</div></div>'+detH;
 
+  // 用語集
   var glossH=Object.keys(GL).map(function(term){
     var def=GL[term], id="g"+term.replace(/[^a-zA-Z]/g,"");
     return '<div class="gloss-card">'
@@ -399,27 +539,24 @@ function renderAll(data, updated){
       +'</div>'
     +'</div>';
   }).join("");
-
   document.getElementById("tab-glossary").innerHTML=
-    '<div class="card" style="padding:12px 16px"><div style="font-size:12px;color:#8b949e;line-height:1.9">知らない言葉が出てきたらここで確認できます。クリックで開閉します。</div></div>'
-    +glossH;
+    '<div class="card" style="padding:12px 16px"><div style="font-size:12px;color:#8b949e;line-height:1.9">知らない言葉が出てきたらここで確認できます。クリックで開閉します。</div></div>'+glossH;
 }
 
 async function loadData(){
   var btn=document.getElementById("refresh-btn");
-  if(btn){ btn.disabled=true; btn.textContent="取得中…"; }
+  if(btn){btn.disabled=true;btn.textContent="取得中…";}
   document.getElementById("tab-today").innerHTML='<div class="loading-msg mono">データを取得中...</div>';
   try{
     var res=await fetch(GAS_URL);
     if(!res.ok) throw new Error("HTTP "+res.status);
     var json=await res.json();
     if(json.error) throw new Error(json.error);
-    renderAll(json.data||{}, json.updated||null);
+    renderAll(json.data||{},json.updated||null);
   }catch(e){
-    document.getElementById("tab-today").innerHTML=
-      '<div class="error-box">データ取得失敗。\n\n詳細: '+e.message+'</div>';
+    document.getElementById("tab-today").innerHTML='<div class="error-box">データ取得失敗。\n\n詳細: '+e.message+'</div>';
   }finally{
-    if(btn){ btn.disabled=false; btn.textContent="↺ 更新"; }
+    if(btn){btn.disabled=false;btn.textContent="↺ 更新";}
   }
 }
 
