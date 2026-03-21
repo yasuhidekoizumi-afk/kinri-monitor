@@ -30,10 +30,14 @@ button { font-family: inherit; cursor: pointer; }
 .ind-card { background: #161b22; border-radius: 8px; padding: 12px 14px; border: 1px solid; }
 .detail-card { background: #0d1117; border-radius: 10px; overflow: hidden; border: 1px solid; }
 .detail-hdr { padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; }
-.detail-body { padding: 0 18px 16px; border-top: 1px solid #21262d; }
+.detail-body { padding: 0 18px 20px; border-top: 1px solid #21262d; }
 .gloss-card { background: #0d1117; border: 1px solid #21262d; border-radius: 10px; overflow: hidden; }
 .gloss-hdr { padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; }
 .gloss-body { padding: 0 18px 16px; border-top: 1px solid #21262d; }
+
+/* チャートコンテナ */
+.chart-container { margin-top: 16px; width: 100%; }
+.chart-container svg { display: block; width: 100%; height: 320px; }
 
 .tip-wrap { position: relative; display: inline; }
 .tip-trigger { border-bottom: 1px dashed #58a6ff; color: #58a6ff; cursor: pointer; }
@@ -108,26 +112,19 @@ var PRI = ["winter","autumn","summer","spring"];
 
 var INDS = [
   { key:"us_spread", label:"景気の先行指標",     sub:"米・長短金利差（10年−2年）",        term:"長短金利差",
-    ex:function(v){ return v<0?v.toFixed(2)+"% ─ マイナス（逆イールド）。景気後退の前兆。":v<0.5?v.toFixed(2)+"% ─ ゼロに近く要注意。":v<1.5?v.toFixed(2)+"% ─ プラスだが警戒が必要。":v.toFixed(2)+"% ─ 健全。景気拡大のサイン。"; },
-    r1:1.0, r2:0, unit:"%" },
+    ex:function(v){ return v<0?v.toFixed(2)+"% ─ マイナス（逆イールド）。景気後退の前兆。":v<0.5?v.toFixed(2)+"% ─ ゼロに近く要注意。":v<1.5?v.toFixed(2)+"% ─ プラスだが警戒が必要。":v.toFixed(2)+"% ─ 健全。景気拡大のサイン。"; }, r1:1.0, r2:0, unit:"%" },
   { key:"us_ig",     label:"大企業の信用度",     sub:"米・社債スプレッド（投資適格）",     term:"IG（投資適格級）",
-    ex:function(v){ return v<1.0?v.toFixed(2)+"% ─ 非常にタイト。市場に油断がある可能性。":v<1.5?v.toFixed(2)+"% ─ 正常な水準。":v<2.5?v.toFixed(2)+"% ─ やや拡大。警戒が必要。":v.toFixed(2)+"% ─ 大幅拡大。危険水準。"; },
-    r1:1.5, r2:2.5, unit:"%" },
+    ex:function(v){ return v<1.0?v.toFixed(2)+"% ─ 非常にタイト。市場に油断がある可能性。":v<1.5?v.toFixed(2)+"% ─ 正常な水準。":v<2.5?v.toFixed(2)+"% ─ やや拡大。警戒が必要。":v.toFixed(2)+"% ─ 大幅拡大。危険水準。"; }, r1:1.5, r2:2.5, unit:"%" },
   { key:"us_hy",     label:"リスク資産の信用度", sub:"米・社債スプレッド（ハイイールド）", term:"HY（ハイイールド）",
-    ex:function(v){ return v<3.5?v.toFixed(2)+"% ─ 好調。信用サイクルの春。":v<5.0?v.toFixed(2)+"% ─ 適正水準。":v<7.0?v.toFixed(2)+"% ─ 拡大中。ハイリスク投資は避ける。":v.toFixed(2)+"% ─ 危機的水準。"; },
-    r1:5.0, r2:7.0, unit:"%" },
+    ex:function(v){ return v<3.5?v.toFixed(2)+"% ─ 好調。信用サイクルの春。":v<5.0?v.toFixed(2)+"% ─ 適正水準。":v<7.0?v.toFixed(2)+"% ─ 拡大中。ハイリスク投資は避ける。":v.toFixed(2)+"% ─ 危機的水準。"; }, r1:5.0, r2:7.0, unit:"%" },
   { key:"jp_spread", label:"日本の景気先行指標", sub:"日・長短金利差（JGB−コール）",      term:"長短金利差",
-    ex:function(v){ return v>1.5?v.toFixed(2)+"% ─ 健全。日銀の利上げ余地あり。":v>0.5?v.toFixed(2)+"% ─ 利上げサイクル進行中。":v>0?v.toFixed(2)+"% ─ フラット化。日銀の次の動きに注目。":v.toFixed(2)+"% ─ 逆イールド。"; },
-    r1:1.0, r2:0, unit:"%" },
+    ex:function(v){ return v>1.5?v.toFixed(2)+"% ─ 健全。日銀の利上げ余地あり。":v>0.5?v.toFixed(2)+"% ─ 利上げサイクル進行中。":v>0?v.toFixed(2)+"% ─ フラット化。日銀の次の動きに注目。":v.toFixed(2)+"% ─ 逆イールド。"; }, r1:1.0, r2:0, unit:"%" },
   { key:"vix",       label:"市場の不安レベル",   sub:"VIX（恐怖指数）",                  term:"VIX",
-    ex:function(v){ return v<15?v.toFixed(1)+" ─ 非常に安心。楽観的すぎる時こそ注意。":v<20?v.toFixed(1)+" ─ 適度な緊張感。":v<30?v.toFixed(1)+" ─ 不安が広がっています。":v.toFixed(1)+" ─ パニック水準。"; },
-    r1:20, r2:30, unit:"" },
+    ex:function(v){ return v<15?v.toFixed(1)+" ─ 非常に安心。楽観的すぎる時こそ注意。":v<20?v.toFixed(1)+" ─ 適度な緊張感。":v<30?v.toFixed(1)+" ─ 不安が広がっています。":v.toFixed(1)+" ─ パニック水準。"; }, r1:20, r2:30, unit:"" },
   { key:"usdjpy",    label:"円とドルの力関係",   sub:"ドル円レート",                     term:null,
-    ex:function(v){ return v>160?v.toFixed(0)+"円 ─ 超円安。介入リスク高。":v>150?v.toFixed(0)+"円 ─ 円安警戒圏。":v>140?v.toFixed(0)+"円 ─ 安定圏。":v.toFixed(0)+"円 ─ 円高。"; },
-    r1:150, r2:160, unit:"円" },
+    ex:function(v){ return v>160?v.toFixed(0)+"円 ─ 超円安。介入リスク高。":v>150?v.toFixed(0)+"円 ─ 円安警戒圏。":v>140?v.toFixed(0)+"円 ─ 安定圏。":v.toFixed(0)+"円 ─ 円高。"; }, r1:150, r2:160, unit:"円" },
   { key:"dxy",       label:"ドルの世界的な強さ", sub:"ドルインデックス（DXY）",          term:"ドルインデックス（DXY）",
-    ex:function(v){ return v>106?v.toFixed(1)+" ─ ドル独歩高。新興国に打撃。":v>102?v.toFixed(1)+" ─ ドルやや強い。":v<98?v.toFixed(1)+" ─ ドル安。新興国に資金流入。":v.toFixed(1)+" ─ 安定圏。"; },
-    r1:100, r2:105, unit:"" }
+    ex:function(v){ return v>106?v.toFixed(1)+" ─ ドル独歩高。新興国に打撃。":v>102?v.toFixed(1)+" ─ ドルやや強い。":v<98?v.toFixed(1)+" ─ ドル安。新興国に資金流入。":v.toFixed(1)+" ─ 安定圏。"; }, r1:100, r2:105, unit:"" }
 ];
 
 function gsn(key,v){ return RULES[key]?RULES[key](v):"spring"; }
@@ -160,37 +157,99 @@ function gauge(sc){
     +'</svg>';
 }
 
-function chart(series, color, r1, r2){
-  if(!series||series.length<2) return '<div style="height:200px;display:flex;align-items:center;justify-content:center;color:#484f58;font-size:11px">データなし</div>';
-  var W=900, H=200, pl=45, pr=8, pt=8, pb=22, cw=W-pl-pr, ch=H-pt-pb;
-  var vals=series.map(function(d){return d.value;});
-  var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals), rng=mx-mn||1;
-  mn-=rng*0.1; mx+=rng*0.1; rng=mx-mn;
-  function px(i){return pl+(i/(series.length-1))*cw;}
-  function py(v){return pt+ch-((v-mn)/rng)*ch;}
-  var pts=series.map(function(d,i){return px(i).toFixed(1)+","+py(d.value).toFixed(1);}).join(" ");
-  var refs="";
+// チャート描画（SVGをDOMで直接作成）
+function buildChart(series, color, r1, r2, containerId){
+  var container = document.getElementById(containerId);
+  if(!container) return;
+  container.innerHTML = "";
+
+  if(!series || series.length < 2){
+    container.innerHTML = '<div style="height:320px;display:flex;align-items:center;justify-content:center;color:#484f58;font-size:12px">データなし</div>';
+    return;
+  }
+
+  var ns = "http://www.w3.org/2000/svg";
+  var svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 1000 320");
+  svg.style.width = "100%";
+  svg.style.height = "320px";
+  svg.style.display = "block";
+
+  var pl=55, pr=10, pt=12, pb=36;
+  var W=1000, H=320, cw=W-pl-pr, ch=H-pt-pb;
+
+  var vals = series.map(function(d){ return d.value; });
+  var mn = Math.min.apply(null, vals);
+  var mx = Math.max.apply(null, vals);
+  var rng = mx - mn || 1;
+  mn -= rng * 0.1;
+  mx += rng * 0.1;
+  rng = mx - mn;
+
+  function px(i){ return pl + (i / (series.length - 1)) * cw; }
+  function py(v){ return pt + ch - ((v - mn) / rng) * ch; }
+
+  // 背景
+  var bg = document.createElementNS(ns, "rect");
+  bg.setAttribute("x", pl); bg.setAttribute("y", pt);
+  bg.setAttribute("width", cw); bg.setAttribute("height", ch);
+  bg.setAttribute("fill", "rgba(255,255,255,0.015)"); bg.setAttribute("rx", "3");
+  svg.appendChild(bg);
+
+  // グリッド線（横）
+  for(var gi=0; gi<=4; gi++){
+    var gv = mn + (gi/4) * rng;
+    var gy = py(gv);
+    var gl = document.createElementNS(ns, "line");
+    gl.setAttribute("x1", pl); gl.setAttribute("y1", gy.toFixed(1));
+    gl.setAttribute("x2", pl+cw); gl.setAttribute("y2", gy.toFixed(1));
+    gl.setAttribute("stroke", "#21262d"); gl.setAttribute("stroke-width", "1");
+    svg.appendChild(gl);
+
+    var yt = document.createElementNS(ns, "text");
+    yt.setAttribute("x", (pl-5).toString()); yt.setAttribute("y", (gy+4).toFixed(1));
+    yt.setAttribute("text-anchor", "end"); yt.setAttribute("font-size", "11");
+    yt.setAttribute("fill", "#6e7681"); yt.setAttribute("font-family", "IBM Plex Mono");
+    yt.textContent = gv.toFixed(2);
+    svg.appendChild(yt);
+  }
+
+  // 参照線
   [[r1,"#fbbf24"],[r2,"#f87171"]].forEach(function(p){
-    if(p[0]===null||p[0]===undefined) return;
-    var yy=py(p[0]); if(yy<pt||yy>pt+ch) return;
-    refs+='<line x1="'+pl+'" y1="'+yy.toFixed(1)+'" x2="'+(pl+cw)+'" y2="'+yy.toFixed(1)+'" stroke="'+p[1]+'" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>';
+    if(p[0] === null || p[0] === undefined) return;
+    var yy = py(p[0]);
+    if(yy < pt || yy > pt+ch) return;
+    var rl = document.createElementNS(ns, "line");
+    rl.setAttribute("x1", pl); rl.setAttribute("y1", yy.toFixed(1));
+    rl.setAttribute("x2", pl+cw); rl.setAttribute("y2", yy.toFixed(1));
+    rl.setAttribute("stroke", p[1]); rl.setAttribute("stroke-width", "1.5");
+    rl.setAttribute("stroke-dasharray", "6,4"); rl.setAttribute("opacity", "0.6");
+    svg.appendChild(rl);
   });
-  var tks="";
-  for(var ti=0;ti<6;ti++){
-    var idx=Math.round((ti/5)*(series.length-1));
-    tks+='<text x="'+px(idx).toFixed(1)+'" y="'+(H-4)+'" text-anchor="middle" font-size="9" fill="#484f58">'+series[idx].date.slice(0,7)+'</text>';
+
+  // ポリライン
+  var ptStr = series.map(function(d,i){ return px(i).toFixed(1)+","+py(d.value).toFixed(1); }).join(" ");
+  var pl2 = document.createElementNS(ns, "polyline");
+  pl2.setAttribute("points", ptStr);
+  pl2.setAttribute("fill", "none");
+  pl2.setAttribute("stroke", color);
+  pl2.setAttribute("stroke-width", "2.5");
+  pl2.setAttribute("stroke-linejoin", "round");
+  pl2.setAttribute("stroke-linecap", "round");
+  svg.appendChild(pl2);
+
+  // X軸ラベル（6点）
+  for(var xi=0; xi<=5; xi++){
+    var idx = Math.round((xi/5)*(series.length-1));
+    var xt = document.createElementNS(ns, "text");
+    xt.setAttribute("x", px(idx).toFixed(1)); xt.setAttribute("y", (H-8).toString());
+    xt.setAttribute("text-anchor", "middle"); xt.setAttribute("font-size", "11");
+    xt.setAttribute("fill", "#6e7681"); xt.setAttribute("font-family", "IBM Plex Mono");
+    xt.textContent = series[idx].date.slice(0,7);
+    svg.appendChild(xt);
   }
-  var yls="";
-  for(var yi=0;yi<=4;yi++){
-    var yv=mn+(yi/4)*rng;
-    yls+='<text x="'+(pl-4)+'" y="'+(py(yv)+4).toFixed(1)+'" text-anchor="end" font-size="9" fill="#484f58">'+yv.toFixed(2)+'</text>';
-  }
-  return '<div style="overflow-x:auto"><svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:200px">'
-    +'<rect x="'+pl+'" y="'+pt+'" width="'+cw+'" height="'+ch+'" fill="rgba(255,255,255,0.01)" rx="2"/>'
-    +refs
-    +'<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linejoin="round"/>'
-    +tks+yls
-    +'</svg></div>';
+
+  container.appendChild(svg);
 }
 
 var TC=0;
@@ -219,12 +278,39 @@ function switchTab(name,btn){
   document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
   if(btn) btn.classList.add("active");
 }
-function tdg(id){
-  var el=document.getElementById(id), k=id.replace("c-",""), tg2=document.getElementById("tg-"+k);
-  if(!el) return;
-  var h=el.classList.toggle("hidden");
-  if(tg2) tg2.textContent=h?"▼ チャート":"▲ 閉じる";
+
+var openKey = null;
+function tdg(key, data){
+  var body = document.getElementById("body-"+key);
+  var tglEl = document.getElementById("tg-"+key);
+  if(!body) return;
+
+  if(openKey === key){
+    body.classList.add("hidden");
+    if(tglEl) tglEl.textContent = "▼ チャート";
+    openKey = null;
+  } else {
+    // 他を閉じる
+    if(openKey){
+      var prev = document.getElementById("body-"+openKey);
+      var prevTg = document.getElementById("tg-"+openKey);
+      if(prev) prev.classList.add("hidden");
+      if(prevTg) prevTg.textContent = "▼ チャート";
+    }
+    body.classList.remove("hidden");
+    if(tglEl) tglEl.textContent = "▲ 閉じる";
+    openKey = key;
+
+    // チャートを描画
+    var m = null;
+    for(var i=0;i<INDS.length;i++){ if(INDS[i].key===key){ m=INDS[i]; break; } }
+    if(m && CURRENT_DATA[key]){
+      var sk = gsn(key, CURRENT_DATA[key][CURRENT_DATA[key].length-1].value);
+      buildChart(CURRENT_DATA[key], S[sk].color, m.r1, m.r2, "chart-"+key);
+    }
+  }
 }
+
 function glg(id){
   var el=document.getElementById(id), ar=document.getElementById("ar-"+id);
   if(!el) return;
@@ -232,8 +318,13 @@ function glg(id){
   if(ar) ar.textContent=h?"▼":"▲";
 }
 
+var CURRENT_DATA = {};
+
 function renderAll(data, updated){
   TC=0;
+  CURRENT_DATA = data;
+  openKey = null;
+
   if(updated) document.getElementById("updated-label").textContent=new Date(updated).toLocaleDateString("ja-JP")+" 更新";
 
   var sea=overall(data), sc=envScore(data), cfg=S[sea];
@@ -293,14 +384,14 @@ function renderAll(data, updated){
       +'<div style="margin-top:12px;font-size:11px;color:#6e7681;line-height:1.9">この四季の概念は堀井正孝「改訂版 金利を見れば投資はうまくいく」をベースにしています。景気は必ず春→夏→秋→冬→春とサイクルを繰り返します。</div>'
     +'</div>';
 
-  // 指標詳細
+  // 指標詳細タブ
   TC=100;
   var detH=INDS.map(function(m){
     var s=data[m.key]; if(!s||!s.length) return "";
     var v=s[s.length-1].value, prev=s.length>1?s[s.length-2]:null, delta=prev?v-prev.value:0;
     var sk=gsn(m.key,v), cfg2=S[sk];
     return '<div class="detail-card" style="border-color:'+cfg2.border+'">'
-      +'<div class="detail-hdr" onclick="tdg(\'c-'+m.key+'\')">'
+      +'<div class="detail-hdr" onclick="tdg(\''+m.key+'\', CURRENT_DATA)">'
         +'<div style="flex:1">'
           +'<div style="font-size:9px;color:#6e7681;margin-bottom:2px">'+m.sub+'</div>'
           +'<div style="font-size:14px;font-weight:700;margin-bottom:4px">'+(m.term?tip(m.term,m.label):m.label)+'</div>'
@@ -312,8 +403,8 @@ function renderAll(data, updated){
           +'<span style="font-size:9px;color:#6e7681" id="tg-'+m.key+'">▼ チャート</span>'
         +'</div>'
       +'</div>'
-      +'<div class="detail-body hidden" id="c-'+m.key+'">'
-        +'<div style="margin-top:12px">'+chart(s,cfg2.color,m.r1,m.r2)+'</div>'
+      +'<div class="detail-body hidden" id="body-'+m.key+'">'
+        +'<div class="chart-container" id="chart-'+m.key+'"></div>'
       +'</div>'
     +'</div>';
   }).join("");
@@ -355,7 +446,7 @@ async function loadData(){
     renderAll(json.data||{}, json.updated||null);
   }catch(e){
     document.getElementById("tab-today").innerHTML=
-      '<div class="error-box">データ取得失敗。\n\n詳細: '+e.message+'\n\nGASのウェブアプリが「全員がアクセス可能」になっているか確認してください。</div>';
+      '<div class="error-box">データ取得失敗。\n\n詳細: '+e.message+'</div>';
   }finally{
     if(btn){ btn.disabled=false; btn.textContent="↺ 更新"; }
   }
