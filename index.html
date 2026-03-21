@@ -35,13 +35,13 @@ button { font-family: inherit; cursor: pointer; }
 .gloss-hdr { padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; }
 .gloss-body { padding: 0 18px 16px; border-top: 1px solid #21262d; }
 
-/* チャートコンテナ */
 .chart-container { margin-top: 16px; width: 100%; }
 .chart-container svg { display: block; width: 100%; height: 320px; }
 
+/* ツールチップは下に表示 */
 .tip-wrap { position: relative; display: inline; }
 .tip-trigger { border-bottom: 1px dashed #58a6ff; color: #58a6ff; cursor: pointer; }
-.tip-box { display: none; position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 200;
+.tip-box { display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 200;
   background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px; width: 280px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.6); font-size: 11px; line-height: 1.7; }
 .tip-box.open { display: block; }
@@ -157,17 +157,14 @@ function gauge(sc){
     +'</svg>';
 }
 
-// チャート描画（SVGをDOMで直接作成）
 function buildChart(series, color, r1, r2, containerId){
   var container = document.getElementById(containerId);
   if(!container) return;
   container.innerHTML = "";
-
   if(!series || series.length < 2){
     container.innerHTML = '<div style="height:320px;display:flex;align-items:center;justify-content:center;color:#484f58;font-size:12px">データなし</div>';
     return;
   }
-
   var ns = "http://www.w3.org/2000/svg";
   var svg = document.createElementNS(ns, "svg");
   svg.setAttribute("viewBox", "0 0 1000 320");
@@ -175,80 +172,65 @@ function buildChart(series, color, r1, r2, containerId){
   svg.style.height = "320px";
   svg.style.display = "block";
 
-  var pl=55, pr=10, pt=12, pb=36;
-  var W=1000, H=320, cw=W-pl-pr, ch=H-pt-pb;
-
+  var pl=55, pr=10, pt=12, pb=36, W=1000, H=320, cw=W-pl-pr, ch=H-pt-pb;
   var vals = series.map(function(d){ return d.value; });
-  var mn = Math.min.apply(null, vals);
-  var mx = Math.max.apply(null, vals);
-  var rng = mx - mn || 1;
-  mn -= rng * 0.1;
-  mx += rng * 0.1;
-  rng = mx - mn;
+  var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals), rng = mx-mn||1;
+  mn -= rng*0.1; mx += rng*0.1; rng = mx-mn;
 
-  function px(i){ return pl + (i / (series.length - 1)) * cw; }
-  function py(v){ return pt + ch - ((v - mn) / rng) * ch; }
+  function px(i){ return pl + (i/(series.length-1))*cw; }
+  function py(v){ return pt + ch - ((v-mn)/rng)*ch; }
 
-  // 背景
-  var bg = document.createElementNS(ns, "rect");
-  bg.setAttribute("x", pl); bg.setAttribute("y", pt);
-  bg.setAttribute("width", cw); bg.setAttribute("height", ch);
-  bg.setAttribute("fill", "rgba(255,255,255,0.015)"); bg.setAttribute("rx", "3");
+  var bg = document.createElementNS(ns,"rect");
+  bg.setAttribute("x",pl); bg.setAttribute("y",pt);
+  bg.setAttribute("width",cw); bg.setAttribute("height",ch);
+  bg.setAttribute("fill","rgba(255,255,255,0.015)"); bg.setAttribute("rx","3");
   svg.appendChild(bg);
 
-  // グリッド線（横）
   for(var gi=0; gi<=4; gi++){
-    var gv = mn + (gi/4) * rng;
-    var gy = py(gv);
-    var gl = document.createElementNS(ns, "line");
-    gl.setAttribute("x1", pl); gl.setAttribute("y1", gy.toFixed(1));
-    gl.setAttribute("x2", pl+cw); gl.setAttribute("y2", gy.toFixed(1));
-    gl.setAttribute("stroke", "#21262d"); gl.setAttribute("stroke-width", "1");
+    var gv = mn+(gi/4)*rng, gy = py(gv);
+    var gl = document.createElementNS(ns,"line");
+    gl.setAttribute("x1",pl); gl.setAttribute("y1",gy.toFixed(1));
+    gl.setAttribute("x2",pl+cw); gl.setAttribute("y2",gy.toFixed(1));
+    gl.setAttribute("stroke","#21262d"); gl.setAttribute("stroke-width","1");
     svg.appendChild(gl);
-
-    var yt = document.createElementNS(ns, "text");
-    yt.setAttribute("x", (pl-5).toString()); yt.setAttribute("y", (gy+4).toFixed(1));
-    yt.setAttribute("text-anchor", "end"); yt.setAttribute("font-size", "11");
-    yt.setAttribute("fill", "#6e7681"); yt.setAttribute("font-family", "IBM Plex Mono");
+    var yt = document.createElementNS(ns,"text");
+    yt.setAttribute("x",(pl-5).toString()); yt.setAttribute("y",(gy+4).toFixed(1));
+    yt.setAttribute("text-anchor","end"); yt.setAttribute("font-size","11");
+    yt.setAttribute("fill","#6e7681"); yt.setAttribute("font-family","IBM Plex Mono");
     yt.textContent = gv.toFixed(2);
     svg.appendChild(yt);
   }
 
-  // 参照線
   [[r1,"#fbbf24"],[r2,"#f87171"]].forEach(function(p){
-    if(p[0] === null || p[0] === undefined) return;
-    var yy = py(p[0]);
-    if(yy < pt || yy > pt+ch) return;
-    var rl = document.createElementNS(ns, "line");
-    rl.setAttribute("x1", pl); rl.setAttribute("y1", yy.toFixed(1));
-    rl.setAttribute("x2", pl+cw); rl.setAttribute("y2", yy.toFixed(1));
-    rl.setAttribute("stroke", p[1]); rl.setAttribute("stroke-width", "1.5");
-    rl.setAttribute("stroke-dasharray", "6,4"); rl.setAttribute("opacity", "0.6");
+    if(p[0]===null||p[0]===undefined) return;
+    var yy=py(p[0]); if(yy<pt||yy>pt+ch) return;
+    var rl=document.createElementNS(ns,"line");
+    rl.setAttribute("x1",pl); rl.setAttribute("y1",yy.toFixed(1));
+    rl.setAttribute("x2",pl+cw); rl.setAttribute("y2",yy.toFixed(1));
+    rl.setAttribute("stroke",p[1]); rl.setAttribute("stroke-width","1.5");
+    rl.setAttribute("stroke-dasharray","6,4"); rl.setAttribute("opacity","0.6");
     svg.appendChild(rl);
   });
 
-  // ポリライン
   var ptStr = series.map(function(d,i){ return px(i).toFixed(1)+","+py(d.value).toFixed(1); }).join(" ");
-  var pl2 = document.createElementNS(ns, "polyline");
-  pl2.setAttribute("points", ptStr);
-  pl2.setAttribute("fill", "none");
-  pl2.setAttribute("stroke", color);
-  pl2.setAttribute("stroke-width", "2.5");
-  pl2.setAttribute("stroke-linejoin", "round");
-  pl2.setAttribute("stroke-linecap", "round");
-  svg.appendChild(pl2);
+  var line = document.createElementNS(ns,"polyline");
+  line.setAttribute("points",ptStr);
+  line.setAttribute("fill","none");
+  line.setAttribute("stroke",color);
+  line.setAttribute("stroke-width","2.5");
+  line.setAttribute("stroke-linejoin","round");
+  line.setAttribute("stroke-linecap","round");
+  svg.appendChild(line);
 
-  // X軸ラベル（6点）
   for(var xi=0; xi<=5; xi++){
-    var idx = Math.round((xi/5)*(series.length-1));
-    var xt = document.createElementNS(ns, "text");
-    xt.setAttribute("x", px(idx).toFixed(1)); xt.setAttribute("y", (H-8).toString());
-    xt.setAttribute("text-anchor", "middle"); xt.setAttribute("font-size", "11");
-    xt.setAttribute("fill", "#6e7681"); xt.setAttribute("font-family", "IBM Plex Mono");
+    var idx=Math.round((xi/5)*(series.length-1));
+    var xt=document.createElementNS(ns,"text");
+    xt.setAttribute("x",px(idx).toFixed(1)); xt.setAttribute("y",(H-8).toString());
+    xt.setAttribute("text-anchor","middle"); xt.setAttribute("font-size","11");
+    xt.setAttribute("fill","#6e7681"); xt.setAttribute("font-family","IBM Plex Mono");
     xt.textContent = series[idx].date.slice(0,7);
     svg.appendChild(xt);
   }
-
   container.appendChild(svg);
 }
 
@@ -280,33 +262,27 @@ function switchTab(name,btn){
 }
 
 var openKey = null;
-function tdg(key, data){
-  var body = document.getElementById("body-"+key);
-  var tglEl = document.getElementById("tg-"+key);
+function tdg(key){
+  var body=document.getElementById("body-"+key), tglEl=document.getElementById("tg-"+key);
   if(!body) return;
-
-  if(openKey === key){
+  if(openKey===key){
     body.classList.add("hidden");
-    if(tglEl) tglEl.textContent = "▼ チャート";
-    openKey = null;
+    if(tglEl) tglEl.textContent="▼ チャート";
+    openKey=null;
   } else {
-    // 他を閉じる
     if(openKey){
-      var prev = document.getElementById("body-"+openKey);
-      var prevTg = document.getElementById("tg-"+openKey);
+      var prev=document.getElementById("body-"+openKey), prevTg=document.getElementById("tg-"+openKey);
       if(prev) prev.classList.add("hidden");
-      if(prevTg) prevTg.textContent = "▼ チャート";
+      if(prevTg) prevTg.textContent="▼ チャート";
     }
     body.classList.remove("hidden");
-    if(tglEl) tglEl.textContent = "▲ 閉じる";
-    openKey = key;
-
-    // チャートを描画
-    var m = null;
+    if(tglEl) tglEl.textContent="▲ 閉じる";
+    openKey=key;
+    var m=null;
     for(var i=0;i<INDS.length;i++){ if(INDS[i].key===key){ m=INDS[i]; break; } }
-    if(m && CURRENT_DATA[key]){
-      var sk = gsn(key, CURRENT_DATA[key][CURRENT_DATA[key].length-1].value);
-      buildChart(CURRENT_DATA[key], S[sk].color, m.r1, m.r2, "chart-"+key);
+    if(m&&CURRENT_DATA[key]){
+      var sk=gsn(key,CURRENT_DATA[key][CURRENT_DATA[key].length-1].value);
+      buildChart(CURRENT_DATA[key],S[sk].color,m.r1,m.r2,"chart-"+key);
     }
   }
 }
@@ -321,10 +297,7 @@ function glg(id){
 var CURRENT_DATA = {};
 
 function renderAll(data, updated){
-  TC=0;
-  CURRENT_DATA = data;
-  openKey = null;
-
+  TC=0; CURRENT_DATA=data; openKey=null;
   if(updated) document.getElementById("updated-label").textContent=new Date(updated).toLocaleDateString("ja-JP")+" 更新";
 
   var sea=overall(data), sc=envScore(data), cfg=S[sea];
@@ -384,14 +357,13 @@ function renderAll(data, updated){
       +'<div style="margin-top:12px;font-size:11px;color:#6e7681;line-height:1.9">この四季の概念は堀井正孝「改訂版 金利を見れば投資はうまくいく」をベースにしています。景気は必ず春→夏→秋→冬→春とサイクルを繰り返します。</div>'
     +'</div>';
 
-  // 指標詳細タブ
   TC=100;
   var detH=INDS.map(function(m){
     var s=data[m.key]; if(!s||!s.length) return "";
     var v=s[s.length-1].value, prev=s.length>1?s[s.length-2]:null, delta=prev?v-prev.value:0;
     var sk=gsn(m.key,v), cfg2=S[sk];
     return '<div class="detail-card" style="border-color:'+cfg2.border+'">'
-      +'<div class="detail-hdr" onclick="tdg(\''+m.key+'\', CURRENT_DATA)">'
+      +'<div class="detail-hdr" onclick="tdg(\''+m.key+'\')">'
         +'<div style="flex:1">'
           +'<div style="font-size:9px;color:#6e7681;margin-bottom:2px">'+m.sub+'</div>'
           +'<div style="font-size:14px;font-weight:700;margin-bottom:4px">'+(m.term?tip(m.term,m.label):m.label)+'</div>'
@@ -413,7 +385,6 @@ function renderAll(data, updated){
     '<div class="card" style="padding:12px 16px"><div style="font-size:12px;color:#8b949e;line-height:1.9">各指標をクリックするとチャートが開きます。</div></div>'
     +detH;
 
-  // 用語集
   var glossH=Object.keys(GL).map(function(term){
     var def=GL[term], id="g"+term.replace(/[^a-zA-Z]/g,"");
     return '<div class="gloss-card">'
