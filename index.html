@@ -4,375 +4,346 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>金利定点観測</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.5.0/Recharts.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet" />
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #070b0f; color: #e6edf3; font-family: system-ui, -apple-system, 'Hiragino Sans', sans-serif; }
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: #0d1117; }
-  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #070b0f; color: #e6edf3; font-family: system-ui, -apple-system, 'Hiragino Sans', sans-serif; }
+.mono { font-family: 'IBM Plex Mono', monospace; }
+button { font-family: inherit; }
+.header { padding: 16px 20px 0; display: flex; justify-content: space-between; align-items: flex-end; }
+.header-title { font-size: 18px; font-weight: 700; }
+.header-sub { font-size: 10px; color: #6e7681; margin-top: 2px; }
+.header-right { display: flex; gap: 10px; align-items: center; }
+.refresh-btn { background: #161b22; border: 1px solid #21262d; border-radius: 5px; padding: 5px 12px; color: #8b949e; font-size: 10px; cursor: pointer; }
+.refresh-btn:disabled { color: #484f58; cursor: not-allowed; }
+.tabs { display: flex; overflow-x: auto; border-bottom: 1px solid #21262d; margin-top: 14px; padding: 0 20px; }
+.tab-btn { background: none; border: none; cursor: pointer; padding: 10px 14px; white-space: nowrap; color: #6e7681; font-size: 12px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab-btn.active { color: #e6edf3; font-weight: 700; border-bottom-color: #58a6ff; }
+.content { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.hidden { display: none !important; }
+.card { background: #0d1117; border: 1px solid #21262d; border-radius: 10px; padding: 20px; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ind-card { background: #161b22; border-radius: 8px; padding: 12px 14px; border: 1px solid #21262d; }
+.error-box { padding: 12px 16px; background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; font-size: 12px; color: #f87171; line-height: 1.9; white-space: pre-wrap; }
+.loading-msg { text-align: center; padding: 60px; color: #484f58; font-size: 12px; }
+.footer { padding: 0 20px 24px; font-size: 9px; color: #3d444d; line-height: 2; }
+.detail-card { background: #0d1117; border-radius: 10px; overflow: hidden; border: 1px solid #21262d; }
+.detail-header { padding: 16px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.detail-body { padding: 0 18px 16px; border-top: 1px solid #21262d; }
+.gloss-card { background: #0d1117; border: 1px solid #21262d; border-radius: 10px; overflow: hidden; }
+.gloss-header { padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.gloss-body { padding: 0 18px 16px; border-top: 1px solid #21262d; }
+.tip-wrap { position: relative; display: inline; }
+.tip-trigger { border-bottom: 1px dashed #58a6ff; color: #58a6ff; cursor: pointer; }
+.tip-box { display: none; position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 200; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px; width: 280px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); font-size: 11px; }
+.tip-box.open { display: block; }
 </style>
 </head>
 <body>
-<div id="root"></div>
 
-<script type="text/babel">
-// ─── GAS ウェブアプリ URL ─────────────────────────────────────────
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwuTnrVi5XXAsqGrzOdBZhgAe-LEqY3CearZWKugkiqb1alKvj6cEzOSTwKwcLNncHH/exec";
+<div class="header">
+  <div>
+    <div class="header-title">金利定点観測</div>
+    <div class="header-sub">堀井正孝「金利を見れば投資はうまくいく」準拠</div>
+  </div>
+  <div class="header-right">
+    <span id="updated-label" class="mono" style="font-size:9px;color:#484f58"></span>
+    <button class="refresh-btn mono" id="refresh-btn" onclick="loadData()">↺ 更新</button>
+  </div>
+</div>
 
-const { useState, useEffect, useCallback } = React;
-const { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer } = Recharts;
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('today',this)">🏠 今日の結論</button>
+  <button class="tab-btn" onclick="switchTab('detail',this)">📊 指標詳細</button>
+  <button class="tab-btn" onclick="switchTab('glossary',this)">📖 用語集</button>
+</div>
 
-// ─── Design tokens ────────────────────────────────────────────────
-const C = {
-  bg: "#070b0f", surface: "#0d1117", surface2: "#161b22",
-  border: "#21262d", border2: "#30363d",
-  text: "#e6edf3", muted: "#8b949e", dim: "#6e7681", dimmer: "#484f58",
+<div class="content" id="tab-today"><div class="loading-msg mono">データを取得中...</div></div>
+<div class="content hidden" id="tab-detail"></div>
+<div class="content hidden" id="tab-glossary"></div>
+
+<div class="footer mono">データ: FRED (St. Louis Fed) via Google Apps Script · 投資助言ではありません</div>
+
+<script>
+var GAS_URL = "https://script.google.com/macros/s/AKfycbwuTnrVi5XXAsqGrzOdBZhgAe-LEqY3CearZWKugkiqb1alKvj6cEzOSTwKwcLNncHH/exec";
+
+var SEASONS = {
+  spring: { ja:"春", emoji:"🌸", color:"#4ade80", border:"rgba(74,222,128,0.3)",  bg:"rgba(74,222,128,0.07)",  tagline:"景気は拡大中。積極的に動いて良い時期。",   action:"新規投資・事業拡張のチャンス。リスクを取る判断がしやすい局面。",   warn:null },
+  summer: { ja:"夏", emoji:"☀️", color:"#fbbf24", border:"rgba(251,191,36,0.3)",  bg:"rgba(251,191,36,0.07)",  tagline:"景気は天井圏。そろそろ注意が必要。",       action:"新規投資は慎重に。利益確定と手元資金の厚みを意識し始める。",       warn:"株価が高くても油断禁物。金利が先に動いている。" },
+  autumn: { ja:"秋", emoji:"🍂", color:"#fb923c", border:"rgba(251,146,60,0.3)",  bg:"rgba(251,146,60,0.07)",  tagline:"景気は縮小中。冬の準備を始める時期。",     action:"新規の大型投資は見送り。手元流動性を高め、守りの体制へ。",         warn:"景気後退が近い可能性。キャッシュを温存する。" },
+  winter: { ja:"冬", emoji:"❄️", color:"#f87171", border:"rgba(248,113,113,0.3)", bg:"rgba(248,113,113,0.07)", tagline:"景気は後退中。守り最優先。",               action:"現金・安全資産を最大化。次の春が来たときに動ける準備を。",           warn:"焦って動かない。春のシグナルを待つ。" }
 };
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
-const SEASONS = {
-  spring: { ja: "春", emoji: "🌸", color: "#4ade80", border: "rgba(74,222,128,0.3)",  bg: "rgba(74,222,128,0.07)",  tagline: "景気は拡大中。積極的に動いて良い時期。",     action: "新規投資・事業拡張のチャンス。リスクを取る判断がしやすい局面。",     warn: null },
-  summer: { ja: "夏", emoji: "☀️", color: "#fbbf24", border: "rgba(251,191,36,0.3)",  bg: "rgba(251,191,36,0.07)",  tagline: "景気は天井圏。そろそろ注意が必要。",         action: "新規投資は慎重に。利益確定と手元資金の厚みを意識し始める。",         warn: "株価が高くても油断禁物。金利が先に動いている。" },
-  autumn: { ja: "秋", emoji: "🍂", color: "#fb923c", border: "rgba(251,146,60,0.3)",  bg: "rgba(251,146,60,0.07)",  tagline: "景気は縮小中。冬の準備を始める時期。",       action: "新規の大型投資は見送り。手元流動性を高め、守りの体制へ。",           warn: "景気後退が近い可能性。キャッシュを温存する。" },
-  winter: { ja: "冬", emoji: "❄️", color: "#f87171", border: "rgba(248,113,113,0.3)", bg: "rgba(248,113,113,0.07)", tagline: "景気は後退中。守り最優先。",                 action: "現金・安全資産を最大化。次の春が来たときに動ける準備を。",             warn: "焦って動かない。春のシグナルを待つ。" },
+var GLOSSARY = {
+  "長短金利差":   { simple:"10年後の金利 と 今の金利 の差", explain:"銀行が長期間お金を貸す際の金利と、短期間貸す際の金利の差です。通常は長期の方が高く差がプラスなら健全。マイナス（逆イールド）になると景気後退の前兆とされています。", analogy:"天気予報に例えると「晴れが続く見込み」なら長期予報が高め。「急に嵐が来る」と皆が思うと逆転する。" },
+  "逆イールド":   { simple:"短期金利 > 長期金利 という異常な状態", explain:"本来は長い期間貸すほど金利が高くなるはずですが、景気悪化の懸念が強まると短期金利の方が高くなります。過去のデータでは、逆イールドが起きた後12〜18ヶ月で景気後退が来ることが多い。", analogy:"「10年定期預金より普通預金の方が金利が高い」という逆転現象。" },
+  "社債スプレッド":{ simple:"企業がお金を借りるときの「リスク上乗せ分」", explain:"国債の金利（ほぼリスクゼロ）と企業の社債の金利の差です。企業の信用力が下がると「貸すのが怖い」ので上乗せ分が大きくなります。", analogy:"住宅ローンで、信用スコアが低い人は金利が高くなるのと同じ。" },
+  "IG（投資適格級）":{ simple:"信用力が高い大企業の債券", explain:"格付け機関からBBB以上の評価を受けた企業の社債。スプレッドが1.5%を超えると市場が警戒し始めているサイン。", analogy:"ローン審査で「優良顧客」と評価された人たちの借入利率。" },
+  "HY（ハイイールド）":{ simple:"信用力が低い企業の高金利債券", explain:"BBB未満の格付けの企業が発行する社債。リターンは高いが倒産リスクも高い「ジャンク債」とも呼ばれる。景気悪化の際にスプレッドが急拡大する。", analogy:"返済能力が不安な人への高金利ローン。景気が悪化すると一気に怖くなる。" },
+  "VIX":          { simple:"市場の不安度計。高いほど投資家が怖がっている", explain:"「恐怖指数」とも呼ばれる。15以下は平静、20超は警戒、30超はパニック。", analogy:"天気予報の「暴風雨確率」。高いほど皆が傘を買い始める。" },
+  "ドルインデックス（DXY）":{ simple:"ドルの強さを示す指数", explain:"ユーロ・円・ポンドなど主要6通貨に対してドルがどれだけ強いかを示す指数。ドル高は新興国に打撃を与え世界経済を引き締める方向に働く。", analogy:"「円安ドル高」がニュースになる、あのドルの強さを数値化したもの。" }
 };
 
-const GLOSSARY = {
-  "長短金利差":              { simple: "10年後の金利 と 今の金利 の差",              explain: "銀行が長期間お金を貸す際の金利（長期金利）と、短期間貸す際の金利（短期金利）の差です。通常は長期の方が高く、差がプラスなら健全。差がマイナス（逆イールド）になると景気後退の前兆とされています。", analogy: "天気予報に例えると「晴れが続く見込み」なら長期予報が高め。「急に嵐が来る」と皆が思うと逆転する。" },
-  "逆イールド":              { simple: "短期金利 > 長期金利 という異常な状態",       explain: "本来は長い期間貸すほど金利が高くなるはずですが、景気悪化の懸念が強まると短期金利の方が高くなります。過去のデータでは、逆イールドが起きた後12〜18ヶ月で景気後退が来ることが多い。",              analogy: "「10年定期預金より普通預金の方が金利が高い」という逆転現象。" },
-  "社債スプレッド":          { simple: "企業がお金を借りるときの「リスク上乗せ分」", explain: "国が発行する国債の金利（ほぼリスクゼロ）と、企業が発行する社債の金利の差です。企業の信用力が下がると「貸すのが怖い」ので上乗せ分が大きくなります。",                                          analogy: "住宅ローンで、信用スコアが低い人は金利が高くなるのと同じ。" },
-  "IG（投資適格級）":        { simple: "信用力が高い大企業の債券",                   explain: "格付け機関からBBB以上の評価を受けた企業の社債。倒産リスクが低いとされる。スプレッドが1.5%を超えると市場が警戒し始めているサイン。",                                                          analogy: "ローン審査で「優良顧客」と評価された人たちの借入利率。" },
-  "HY（ハイイールド）":      { simple: "信用力が低い企業の高金利債券",               explain: "BBB未満の格付けの企業が発行する社債。リターンは高いが倒産リスクも高い「ジャンク債」とも呼ばれる。景気悪化の際にスプレッドが急拡大する。",                                                      analogy: "返済能力が不安な人への高金利ローン。景気が悪化すると一気に怖くなる。" },
-  "VIX":                     { simple: "市場の不安度計。高いほど投資家が怖がっている", explain: "「恐怖指数」とも呼ばれる。15以下は平静、20超は警戒、30超はパニック。",                                                                                                                        analogy: "天気予報の「暴風雨確率」。高いほど皆が傘を買い始める。" },
-  "ドルインデックス（DXY）": { simple: "ドルの強さを示す指数",                       explain: "ユーロ・円・ポンドなど主要6通貨に対してドルがどれだけ強いかを示す指数。ドル高は新興国に打撃を与え、世界経済を引き締める方向に働く。",                                                           analogy: "「円安ドル高」がニュースになる、あのドルの強さを数値化したもの。" },
+var RULES = {
+  us_spread: function(v){ return v>1.5?"spring":v>0.5?"summer":v>0?"autumn":"winter"; },
+  us_ig:     function(v){ return v<1.0?"spring":v<1.5?"summer":v<2.5?"autumn":"winter"; },
+  us_hy:     function(v){ return v<3.5?"spring":v<5.0?"summer":v<7.0?"autumn":"winter"; },
+  jp_spread: function(v){ return v>1.5?"spring":v>0.5?"summer":v>0?"autumn":"winter"; },
+  vix:       function(v){ return v<15?"spring":v<20?"summer":v<30?"autumn":"winter"; },
+  dxy:       function(v){ return v<98?"spring":v<102?"summer":v<106?"autumn":"winter"; },
+  usdjpy:    function(v){ return v<140?"spring":v<150?"summer":v<160?"autumn":"winter"; }
 };
+var WEIGHTS = { us_spread:3, us_ig:2, us_hy:2, jp_spread:2, vix:1, dxy:1, usdjpy:1 };
+var S_SCORE = { spring:100, summer:65, autumn:30, winter:0 };
+var S_PRI   = ["winter","autumn","summer","spring"];
 
-const RULES = {
-  us_spread: v => v > 1.5 ? "spring" : v > 0.5 ? "summer" : v > 0 ? "autumn" : "winter",
-  us_ig:     v => v < 1.0 ? "spring" : v < 1.5 ? "summer" : v < 2.5 ? "autumn" : "winter",
-  us_hy:     v => v < 3.5 ? "spring" : v < 5.0 ? "summer" : v < 7.0 ? "autumn" : "winter",
-  jp_spread: v => v > 1.5 ? "spring" : v > 0.5 ? "summer" : v > 0 ? "autumn" : "winter",
-  vix:       v => v < 15  ? "spring" : v < 20  ? "summer" : v < 30  ? "autumn" : "winter",
-  dxy:       v => v < 98  ? "spring" : v < 102 ? "summer" : v < 106 ? "autumn" : "winter",
-  usdjpy:    v => v < 140 ? "spring" : v < 150 ? "summer" : v < 160 ? "autumn" : "winter",
-};
-const WEIGHTS    = { us_spread: 3, us_ig: 2, us_hy: 2, jp_spread: 2, vix: 1, dxy: 1, usdjpy: 1 };
-const S_SCORE    = { spring: 100, summer: 65, autumn: 30, winter: 0 };
-const S_PRIORITY = ["winter", "autumn", "summer", "spring"];
+var INDS = [
+  { key:"us_spread", label:"景気の先行指標",     sub:"米・長短金利差（10年−2年）",        term:"長短金利差",
+    explain:function(v){ return v<0?v.toFixed(2)+"% — マイナス（逆イールド）。景気後退の前兆。":v<0.5?v.toFixed(2)+"% — ゼロに近く要注意。":v<1.5?v.toFixed(2)+"% — プラスだが警戒が必要。":v.toFixed(2)+"% — 健全。景気拡大のサイン。"; },
+    r1:1.0, r2:0, unit:"%" },
+  { key:"us_ig",     label:"大企業の信用度",     sub:"米・社債スプレッド（投資適格）",     term:"IG（投資適格級）",
+    explain:function(v){ return v<1.0?v.toFixed(2)+"% — 非常にタイト。市場に油断がある可能性。":v<1.5?v.toFixed(2)+"% — 正常な水準。":v<2.5?v.toFixed(2)+"% — やや拡大。警戒が必要。":v.toFixed(2)+"% — 大幅拡大。危険水準。"; },
+    r1:1.5, r2:2.5, unit:"%" },
+  { key:"us_hy",     label:"リスク資産の信用度", sub:"米・社債スプレッド（ハイイールド）", term:"HY（ハイイールド）",
+    explain:function(v){ return v<3.5?v.toFixed(2)+"% — 好調。信用サイクルの春。":v<5.0?v.toFixed(2)+"% — 適正水準。":v<7.0?v.toFixed(2)+"% — 拡大中。ハイリスク投資は避ける。":v.toFixed(2)+"% — 危機的水準。"; },
+    r1:5.0, r2:7.0, unit:"%" },
+  { key:"jp_spread", label:"日本の景気先行指標", sub:"日・長短金利差（JGB−コール）",      term:"長短金利差",
+    explain:function(v){ return v>1.5?v.toFixed(2)+"% — 健全。日銀の利上げ余地あり。":v>0.5?v.toFixed(2)+"% — 利上げサイクル進行中。":v>0?v.toFixed(2)+"% — フラット化。日銀の次の動きに注目。":v.toFixed(2)+"% — 逆イールド。"; },
+    r1:1.0, r2:0, unit:"%" },
+  { key:"vix",       label:"市場の不安レベル",   sub:"VIX（恐怖指数）",                  term:"VIX",
+    explain:function(v){ return v<15?v.toFixed(1)+" — 非常に安心。楽観的すぎる時こそ注意。":v<20?v.toFixed(1)+" — 適度な緊張感。":v<30?v.toFixed(1)+" — 不安が広がっています。":v.toFixed(1)+" — パニック水準。"; },
+    r1:20, r2:30, unit:"" },
+  { key:"usdjpy",    label:"円とドルの力関係",   sub:"ドル円レート",                     term:null,
+    explain:function(v){ return v>160?v.toFixed(0)+"円 — 超円安。介入リスク高。":v>150?v.toFixed(0)+"円 — 円安警戒圏。":v>140?v.toFixed(0)+"円 — 安定圏。":v.toFixed(0)+"円 — 円高。"; },
+    r1:150, r2:160, unit:"円" },
+  { key:"dxy",       label:"ドルの世界的な強さ", sub:"ドルインデックス（DXY）",          term:"ドルインデックス（DXY）",
+    explain:function(v){ return v>106?v.toFixed(1)+" — ドル独歩高。新興国に打撃。":v>102?v.toFixed(1)+" — ドルやや強い。":v<98?v.toFixed(1)+" — ドル安。新興国に資金流入。":v.toFixed(1)+" — 安定圏。"; },
+    r1:100, r2:105, unit:"" }
+];
 
-function getSeason(key, v) { return RULES[key]?.(v) ?? "spring"; }
-function overallSeason(data) {
-  const seasons = Object.keys(RULES).map(k => { const s = data[k]; return s?.length ? getSeason(k, s.at(-1).value) : null; }).filter(Boolean);
-  for (const s of S_PRIORITY) { if (seasons.includes(s)) return s; }
+function getSeason(key,v){ return RULES[key]?RULES[key](v):"spring"; }
+function overall(data){
+  var arr=[];
+  Object.keys(RULES).forEach(function(k){ var s=data[k]; if(s&&s.length) arr.push(getSeason(k,s[s.length-1].value)); });
+  for(var i=0;i<S_PRI.length;i++){ if(arr.indexOf(S_PRI[i])>=0) return S_PRI[i]; }
   return "spring";
 }
-function envScore(data) {
-  let tw = 0, ts = 0;
-  for (const [k, w] of Object.entries(WEIGHTS)) {
-    const s = data[k]; if (!s?.length) continue;
-    ts += S_SCORE[getSeason(k, s.at(-1).value)] * w; tw += w;
+function score(data){
+  var tw=0,ts=0;
+  Object.keys(WEIGHTS).forEach(function(k){ var s=data[k]; if(!s||!s.length) return; ts+=S_SCORE[getSeason(k,s[s.length-1].value)]*WEIGHTS[k]; tw+=WEIGHTS[k]; });
+  return tw?Math.round(ts/tw):50;
+}
+
+function gauge(sc){
+  var s=sc>=75?"spring":sc>=50?"summer":sc>=25?"autumn":"winter";
+  var c=SEASONS[s].color;
+  var a=((sc/100)*180-180)*Math.PI/180;
+  var nx=(60+50*Math.cos(a)).toFixed(1), ny=(65+50*Math.sin(a)).toFixed(1);
+  var lx=(60+36*Math.cos(a)).toFixed(1), ly=(65+36*Math.sin(a)).toFixed(1);
+  return '<svg width="120" height="75" viewBox="0 0 120 75"><path d="M 10 65 A 50 50 0 0 1 110 65" stroke="#1c2128" stroke-width="10" fill="none" stroke-linecap="round"/>'+
+    '<path d="M 10 65 A 50 50 0 0 1 '+nx+' '+ny+'" stroke="'+c+'" stroke-width="10" fill="none" stroke-linecap="round"/>'+
+    '<line x1="60" y1="65" x2="'+lx+'" y2="'+ly+'" stroke="'+c+'" stroke-width="2.5" stroke-linecap="round"/>'+
+    '<circle cx="60" cy="65" r="5" fill="'+c+'"/>'+
+    '<text x="60" y="52" text-anchor="middle" font-family="IBM Plex Mono" font-size="16" font-weight="700" fill="'+c+'">'+sc+'</text>'+
+    '<text x="10" y="75" font-size="7" fill="#484f58">冬</text><text x="105" y="75" font-size="7" fill="#484f58">春</text></svg>';
+}
+
+function svgChart(series, color, r1, r2){
+  if(!series||series.length<2) return '<div style="height:90px;display:flex;align-items:center;justify-content:center;color:#484f58;font-size:11px">データなし</div>';
+  var W=560,H=90,pl=38,pr=8,pt=6,pb=18;
+  var cw=W-pl-pr, ch=H-pt-pb;
+  var vals=series.map(function(d){return d.value;});
+  var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals);
+  var rng=mx-mn||1; mn-=rng*0.1; mx+=rng*0.1; rng=mx-mn;
+  function px(i){return pl+(i/(series.length-1))*cw;}
+  function py(v){return pt+ch-((v-mn)/rng)*ch;}
+  var pts=series.map(function(d,i){return px(i).toFixed(1)+","+py(d.value).toFixed(1);}).join(" ");
+  var refs="";
+  [r1,r2].forEach(function(rv,ri){
+    if(rv===null||rv===undefined) return;
+    var yy=py(rv); if(yy<pt||yy>pt+ch) return;
+    refs+='<line x1="'+pl+'" y1="'+yy.toFixed(1)+'" x2="'+(pl+cw)+'" y2="'+yy.toFixed(1)+'" stroke="'+(ri===0?"#fbbf24":"#f87171")+'" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>';
+  });
+  var tks="";
+  for(var ti=0;ti<5;ti++){
+    var idx=Math.round((ti/4)*(series.length-1));
+    tks+='<text x="'+px(idx).toFixed(1)+'" y="'+(H-3)+'" text-anchor="middle" font-size="7" fill="#484f58">'+series[idx].date.slice(0,7)+'</text>';
   }
-  return tw ? Math.round(ts / tw) : 50;
+  var yls="";
+  for(var yi=0;yi<=3;yi++){
+    var yv=mn+(yi/3)*rng;
+    yls+='<text x="'+(pl-3)+'" y="'+(py(yv)+3).toFixed(1)+'" text-anchor="end" font-size="7" fill="#484f58">'+yv.toFixed(1)+'</text>';
+  }
+  return '<div style="overflow-x:auto"><svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:90px">'+refs+'<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="1.5" stroke-linejoin="round"/>'+tks+yls+'</svg></div>';
 }
 
-async function loadData() {
-  const res  = await fetch(GAS_URL);
-  if (!res.ok) throw new Error("HTTP " + res.status);
-  const json = await res.json();
-  if (json.error) throw new Error(json.error);
-  return { data: json.data ?? {}, updated: json.updated ?? null };
+var tipCount=0;
+function tip(term, label){
+  if(!term||!GLOSSARY[term]) return label;
+  var id="tip"+(tipCount++);
+  var g=GLOSSARY[term];
+  return '<span class="tip-wrap">'+
+    '<span class="tip-trigger" onclick="toggleTip(\''+id+'\')">'+label+'</span>'+
+    '<div class="tip-box" id="'+id+'">'+
+      '<div style="font-size:9px;color:#58a6ff;letter-spacing:0.1em;margin-bottom:6px" class="mono">用語解説</div>'+
+      '<div style="font-size:12px;font-weight:700;margin-bottom:6px">'+g.simple+'</div>'+
+      '<div style="color:#8b949e;line-height:1.8;margin-bottom:6px">'+g.explain+'</div>'+
+      '<div style="font-size:10px;color:#6e7681;line-height:1.7;border-top:1px solid #21262d;padding-top:6px">💡 '+g.analogy+'</div>'+
+      '<button onclick="closeTip(\''+id+'\',event)" style="position:absolute;top:8px;right:10px;background:none;border:none;color:#6e7681;cursor:pointer;font-size:14px">×</button>'+
+    '</div>'+
+  '</span>';
+}
+function toggleTip(id){ var e=document.getElementById(id); if(e) e.classList.toggle("open"); }
+function closeTip(id,ev){ var e=document.getElementById(id); if(e) e.classList.remove("open"); if(ev) ev.stopPropagation(); }
+
+function switchTab(name, btn){
+  ["today","detail","glossary"].forEach(function(t){
+    var el=document.getElementById("tab-"+t);
+    if(el) el.classList.toggle("hidden", t!==name);
+  });
+  document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
+  if(btn) btn.classList.add("active");
 }
 
-// ─── UI: Glossary tooltip ─────────────────────────────────────────
-function GlossaryTip({ term, children }) {
-  const [open, setOpen] = useState(false);
-  const def = GLOSSARY[term];
-  if (!def) return <span>{children ?? term}</span>;
-  return (
-    <span style={{ position: "relative", display: "inline-block" }}>
-      <span onClick={() => setOpen(o => !o)} style={{ borderBottom: "1px dashed #58a6ff", color: "#58a6ff", cursor: "pointer" }}>
-        {children ?? term}
-      </span>
-      {open && (
-        <div onClick={e => e.stopPropagation()} style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, zIndex: 100, background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: 14, width: 280, boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
-          <div style={{ fontSize: 9, color: "#58a6ff", letterSpacing: "0.1em", marginBottom: 6, ...mono }}>用語解説</div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 6 }}>{def.simple}</div>
-          <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.8, marginBottom: 6 }}>{def.explain}</div>
-          <div style={{ fontSize: 10, color: C.dim, lineHeight: 1.7, borderTop: `1px solid ${C.border}`, paddingTop: 6 }}>💡 {def.analogy}</div>
-          <button onClick={() => setOpen(false)} style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none", color: C.dim, cursor: "pointer", fontSize: 14 }}>×</button>
-        </div>
-      )}
-    </span>
-  );
+function toggleDetail(id){
+  var el=document.getElementById(id);
+  var key=id.replace("chart-","");
+  var tg=document.getElementById("tg-"+key);
+  if(!el) return;
+  var h=el.classList.toggle("hidden");
+  if(tg) tg.textContent=h?"▼ チャート":"▲ 閉じる";
 }
 
-function Gauge({ score }) {
-  const s   = score >= 75 ? "spring" : score >= 50 ? "summer" : score >= 25 ? "autumn" : "winter";
-  const cfg = SEASONS[s];
-  const a   = ((score / 100) * 180 - 180) * Math.PI / 180;
-  return (
-    <svg width="120" height="75" viewBox="0 0 120 75">
-      <path d="M 10 65 A 50 50 0 0 1 110 65" stroke="#1c2128" strokeWidth="10" fill="none" strokeLinecap="round" />
-      <path d={`M 10 65 A 50 50 0 0 1 ${60 + 50*Math.cos(a)} ${65 + 50*Math.sin(a)}`} stroke={cfg.color} strokeWidth="10" fill="none" strokeLinecap="round" />
-      <line x1="60" y1="65" x2={60 + 36*Math.cos(a)} y2={65 + 36*Math.sin(a)} stroke={cfg.color} strokeWidth="2.5" strokeLinecap="round" />
-      <circle cx="60" cy="65" r="5" fill={cfg.color} />
-      <text x="60" y="52" textAnchor="middle" style={{ fontSize: 16, fontWeight: 700, fill: cfg.color, fontFamily: "IBM Plex Mono" }}>{score}</text>
-      <text x="10"  y="75" style={{ fontSize: 7, fill: C.dimmer }}>冬</text>
-      <text x="105" y="75" style={{ fontSize: 7, fill: C.dimmer }}>春</text>
-    </svg>
-  );
+function toggleGloss(id){
+  var el=document.getElementById(id);
+  var ar=document.getElementById("ar-"+id);
+  if(!el) return;
+  var h=el.classList.toggle("hidden");
+  if(ar) ar.textContent=h?"▼":"▲";
 }
 
-function MiniChart({ series, color, unit = "%", refs = [], height = 90 }) {
-  const chart = series.slice(-150);
-  const tick  = Math.max(1, Math.floor(chart.length / 4));
-  return (
-    <div style={{ height }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chart} margin={{ top: 4, right: 4, bottom: 0, left: -38 }}>
-          <XAxis dataKey="date" tick={{ fontSize: 7, fill: C.dimmer }} tickLine={false} axisLine={false} interval={tick} />
-          <YAxis tick={{ fontSize: 7, fill: C.dimmer }} tickLine={false} axisLine={false} tickFormatter={v => v.toFixed(1)} domain={["auto","auto"]} />
-          {refs.map((r, i) => <ReferenceLine key={i} y={r.y} stroke={r.color} strokeDasharray="3 3" strokeOpacity={0.5} />)}
-          <Tooltip content={({ active, payload, label }) => {
-            if (!active || !payload?.length) return null;
-            return <div style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 6, padding: "8px 12px", fontSize: 11, fontFamily: "IBM Plex Mono" }}><div style={{ color: C.dim, marginBottom: 2 }}>{label}</div><div style={{ color: C.text, fontWeight: 700 }}>{payload[0].value?.toFixed(2)}{unit}</div></div>;
-          }} />
-          <Line type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} dot={false} activeDot={{ r: 3 }} />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
+function renderAll(data, updated){
+  tipCount=0;
+  if(updated){
+    document.getElementById("updated-label").textContent=new Date(updated).toLocaleDateString("ja-JP")+" 更新";
+  }
+  var sea=overall(data), sc=score(data), cfg=SEASONS[sea];
+  var usv=(data.us_spread&&data.us_spread.length)?data.us_spread[data.us_spread.length-1].value:0;
+  var alertH=usv<=0?'<div style="padding:10px 14px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-size:12px;color:#f87171;margin-bottom:14px">🚨 逆イールド発生中 — '+tip("逆イールド","逆イールドとは？")+'</div>':
+             usv<=1.0?'<div style="padding:10px 14px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-size:12px;color:#f87171;margin-bottom:14px">⚡ 第1警戒（1%以下）— '+tip("逆イールド","逆イールドとは？")+'</div>':"";
+
+  var indH=INDS.map(function(m){
+    var s=data[m.key]; if(!s||!s.length) return "";
+    var v=s[s.length-1].value, sk=getSeason(m.key,v), ic=SEASONS[sk];
+    return '<div class="ind-card" style="border-color:'+ic.border+'">'+
+      '<div style="display:flex;justify-content:space-between;margin-bottom:6px">'+
+        '<div><div style="font-size:9px;color:#6e7681;margin-bottom:2px">'+m.sub+'</div>'+
+        '<div style="font-size:12px;font-weight:700">'+(m.term?tip(m.term,m.label):m.label)+'</div></div>'+
+        '<span style="font-size:16px">'+ic.emoji+'</span>'+
+      '</div>'+
+      '<div style="font-size:11px;color:#8b949e;line-height:1.8">'+m.explain(v)+'</div>'+
+    '</div>';
+  }).join("");
+
+  var seasH=["spring","summer","autumn","winter"].map(function(sk){
+    var sc2=SEASONS[sk], isN=sk===sea;
+    return '<div style="padding:12px 14px;border-radius:8px;background:'+(isN?sc2.bg:"rgba(0,0,0,0.2)")+';border:1px solid '+(isN?sc2.border:"#21262d")+'">'+
+      '<div style="font-size:18px;margin-bottom:4px">'+sc2.emoji+' <span style="font-size:14px;font-weight:700;color:'+sc2.color+'">'+sc2.ja+'</span>'+(isN?' <span style="font-size:9px;color:'+sc2.color+'" class="mono">← 今ここ</span>':"")+'</div>'+
+      '<div style="font-size:11px;color:'+(isN?"#8b949e":"#6e7681")+';line-height:1.7">'+sc2.tagline+'</div>'+
+    '</div>';
+  }).join("");
+
+  document.getElementById("tab-today").innerHTML=
+    '<div style="background:'+cfg.bg+';border:2px solid '+cfg.border+';border-radius:12px;padding:22px 24px">'+
+      '<div style="font-size:9px;color:'+cfg.color+';letter-spacing:0.18em;margin-bottom:8px;opacity:0.8" class="mono">今日の景気サイクル判定</div>'+
+      '<div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap">'+
+        '<div style="font-size:52px;line-height:1">'+cfg.emoji+'</div>'+
+        '<div><div style="font-size:36px;font-weight:800;color:'+cfg.color+';line-height:1">'+cfg.ja+'</div><div style="font-size:14px;color:#8b949e;margin-top:4px">'+cfg.tagline+'</div></div>'+
+        gauge(sc)+
+      '</div>'+
+      alertH+
+      '<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px 16px">'+
+        '<div style="font-size:10px;color:#6e7681;margin-bottom:6px" class="mono">▶ 今すべきこと</div>'+
+        '<div style="font-size:13px;line-height:1.9">'+cfg.action+'</div>'+
+        (cfg.warn?'<div style="font-size:12px;color:'+cfg.color+';margin-top:8px;opacity:0.9">⚠ '+cfg.warn+'</div>':"")+'</div>'+
+    '</div>'+
+    '<div class="card">'+
+      '<div style="font-size:13px;font-weight:700;margin-bottom:4px">なぜ「'+cfg.ja+'」と判定されているのか？</div>'+
+      '<div style="font-size:12px;color:#8b949e;line-height:1.9;margin-bottom:16px">以下の7つの指標を総合して判定しています。青い下線の用語はタップすると解説が出ます。</div>'+
+      '<div class="grid-2">'+indH+'</div>'+
+    '</div>'+
+    '<div class="card">'+
+      '<div style="font-size:13px;font-weight:700;margin-bottom:12px">景気の四季とは？</div>'+
+      '<div class="grid-2x2">'+seasH+'</div>'+
+      '<div style="margin-top:12px;font-size:11px;color:#6e7681;line-height:1.9">この四季の概念は、堀井正孝「改訂版 金利を見れば投資はうまくいく」をベースにしています。景気は必ず春→夏→秋→冬→春とサイクルを繰り返します。</div>'+
+    '</div>';
+
+  // Detail tab
+  tipCount=100;
+  var detH=INDS.map(function(m){
+    var s=data[m.key]; if(!s||!s.length) return "";
+    var v=s[s.length-1].value, prev=s.length>1?s[s.length-2]:null;
+    var delta=prev?v-prev.value:0;
+    var sk=getSeason(m.key,v), cfg2=SEASONS[sk];
+    return '<div class="detail-card" style="border-color:'+cfg2.border+'">'+
+      '<div class="detail-header" onclick="toggleDetail(\'chart-'+m.key+'\')">'+
+        '<div style="flex:1">'+
+          '<div style="font-size:9px;color:#6e7681;margin-bottom:2px">'+m.sub+'</div>'+
+          '<div style="font-size:14px;font-weight:700;margin-bottom:4px">'+(m.term?tip(m.term,m.label):m.label)+'</div>'+
+          '<div style="font-size:11px;color:#8b949e;line-height:1.7">'+m.explain(v)+'</div>'+
+        '</div>'+
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:14px;flex-shrink:0">'+
+          '<span style="font-size:18px">'+cfg2.emoji+'</span>'+
+          '<span style="font-size:11px;color:'+(delta>=0?"#4ade80":"#f87171")+'" class="mono">'+(delta>=0?"▲":"▼")+Math.abs(delta).toFixed(2)+'</span>'+
+          '<span style="font-size:9px;color:#6e7681" id="tg-'+m.key+'">▼ チャート</span>'+
+        '</div>'+
+      '</div>'+
+      '<div class="detail-body hidden" id="chart-'+m.key+'">'+
+        '<div style="margin-top:12px">'+svgChart(s,cfg2.color,m.r1,m.r2)+'</div>'+
+      '</div>'+
+    '</div>';
+  }).join("");
+  document.getElementById("tab-detail").innerHTML=
+    '<div class="card" style="padding:12px 16px"><div style="font-size:12px;color:#8b949e;line-height:1.9">各指標をクリックするとチャートが開きます。</div></div>'+detH;
+
+  // Glossary tab
+  tipCount=200;
+  var glossH=Object.keys(GLOSSARY).map(function(term){
+    var def=GLOSSARY[term], id="g"+term.replace(/[^a-zA-Z]/g,"");
+    return '<div class="gloss-card">'+
+      '<div class="gloss-header" onclick="toggleGloss(\''+id+'\')">'+
+        '<div><div style="font-size:13px;font-weight:700">'+term+'</div><div style="font-size:11px;color:#58a6ff;margin-top:3px">'+def.simple+'</div></div>'+
+        '<span style="color:#6e7681;font-size:12px" id="ar-'+id+'">▼</span>'+
+      '</div>'+
+      '<div class="gloss-body hidden" id="'+id+'">'+
+        '<div style="font-size:12px;color:#8b949e;line-height:2;margin-top:12px;margin-bottom:10px">'+def.explain+'</div>'+
+        '<div style="padding:10px 14px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.15);border-radius:8px;font-size:11px;color:#58a6ff;line-height:1.8">💡 わかりやすく言うと…<br>'+def.analogy+'</div>'+
+      '</div>'+
+    '</div>';
+  }).join("");
+  document.getElementById("tab-glossary").innerHTML=
+    '<div class="card" style="padding:12px 16px"><div style="font-size:12px;color:#8b949e;line-height:1.9">知らない言葉が出てきたらここで確認できます。クリックで開閉します。</div></div>'+glossH;
 }
 
-const INDICATOR_META = [
-  { key: "us_spread", label: "景気の先行指標",     sublabel: "米・長短金利差（10年−2年）",        term: "長短金利差",
-    explain: v => v < 0 ? `${v.toFixed(2)}%。マイナス（逆イールド）。景気後退の前兆。` : v < 0.5 ? `${v.toFixed(2)}%。ゼロに近く要注意。` : v < 1.5 ? `${v.toFixed(2)}%。プラスだが警戒が必要。` : `${v.toFixed(2)}%。健全。景気拡大のサイン。`,
-    refs: [{ y: 1.0, color: "#fb923c" }, { y: 0, color: "#f87171" }], unit: "%" },
-  { key: "us_ig",     label: "大企業の信用度",     sublabel: "米・社債スプレッド（投資適格）",     term: "IG（投資適格級）",
-    explain: v => v < 1.0 ? `${v.toFixed(2)}%。非常にタイト。市場に油断がある可能性。` : v < 1.5 ? `${v.toFixed(2)}%。正常な水準。` : v < 2.5 ? `${v.toFixed(2)}%。やや拡大。警戒が必要。` : `${v.toFixed(2)}%。大幅拡大。危険水準。`,
-    refs: [{ y: 1.5, color: "#fbbf24" }, { y: 2.5, color: "#f87171" }], unit: "%" },
-  { key: "us_hy",     label: "リスク資産の信用度", sublabel: "米・社債スプレッド（ハイイールド）", term: "HY（ハイイールド）",
-    explain: v => v < 3.5 ? `${v.toFixed(2)}%。好調。信用サイクルの春。` : v < 5.0 ? `${v.toFixed(2)}%。適正水準。` : v < 7.0 ? `${v.toFixed(2)}%。拡大中。ハイリスク投資は避ける。` : `${v.toFixed(2)}%。危機的水準。`,
-    refs: [{ y: 5.0, color: "#fbbf24" }, { y: 7.0, color: "#f87171" }], unit: "%" },
-  { key: "jp_spread", label: "日本の景気先行指標", sublabel: "日・長短金利差（JGB−コール）",      term: "長短金利差",
-    explain: v => v > 1.5 ? `${v.toFixed(2)}%。健全。日銀の利上げ余地あり。` : v > 0.5 ? `${v.toFixed(2)}%。利上げサイクル進行中。` : v > 0 ? `${v.toFixed(2)}%。フラット化。日銀の次の動きに注目。` : `${v.toFixed(2)}%。逆イールド。`,
-    refs: [{ y: 1.0, color: "#fbbf24" }, { y: 0, color: "#f87171" }], unit: "%" },
-  { key: "vix",       label: "市場の不安レベル",   sublabel: "VIX（恐怖指数）",                  term: "VIX",
-    explain: v => v < 15 ? `${v.toFixed(1)}。非常に安心。楽観的すぎる時こそ注意。` : v < 20 ? `${v.toFixed(1)}。適度な緊張感。市場は健全。` : v < 30 ? `${v.toFixed(1)}。不安が広がっています。` : `${v.toFixed(1)}。パニック水準。`,
-    refs: [{ y: 20, color: "#fbbf24" }, { y: 30, color: "#f87171" }], unit: "" },
-  { key: "usdjpy",    label: "円とドルの力関係",   sublabel: "ドル円レート",                     term: null,
-    explain: v => v > 160 ? `${v.toFixed(0)}円。超円安。介入リスク高。` : v > 150 ? `${v.toFixed(0)}円。円安警戒圏。` : v > 140 ? `${v.toFixed(0)}円。安定圏。` : `${v.toFixed(0)}円。円高。`,
-    refs: [{ y: 150, color: "#fbbf24" }, { y: 160, color: "#f87171" }], unit: "円" },
-  { key: "dxy",       label: "ドルの世界的な強さ", sublabel: "ドルインデックス（DXY）",          term: "ドルインデックス（DXY）",
-    explain: v => v > 106 ? `${v.toFixed(1)}。ドル独歩高。新興国経済に打撃。` : v > 102 ? `${v.toFixed(1)}。ドルやや強い。` : v < 98 ? `${v.toFixed(1)}。ドル安。新興国に資金流入。` : `${v.toFixed(1)}。安定圏。`,
-    refs: [{ y: 100, color: "#fbbf24" }, { y: 105, color: "#f87171" }], unit: "" },
-];
-
-function TodayTab({ data }) {
-  const season = overallSeason(data);
-  const score  = envScore(data);
-  const cfg    = SEASONS[season];
-  const usv    = data.us_spread?.at(-1)?.value ?? 0;
-  const alert  = usv <= 0 ? "🚨 逆イールド発生中" : usv <= 1.0 ? "⚡ 第1警戒（1%以下）" : null;
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ background: cfg.bg, border: `2px solid ${cfg.border}`, borderRadius: 12, padding: "22px 24px" }}>
-        <div style={{ fontSize: 9, color: cfg.color, letterSpacing: "0.18em", marginBottom: 8, opacity: 0.8, ...mono }}>今日の景気サイクル判定</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 52, lineHeight: 1 }}>{cfg.emoji}</div>
-          <div>
-            <div style={{ fontSize: 36, fontWeight: 800, color: cfg.color, lineHeight: 1 }}>{cfg.ja}</div>
-            <div style={{ fontSize: 14, color: C.muted, marginTop: 4 }}>{cfg.tagline}</div>
-          </div>
-          <div style={{ marginLeft: "auto" }}><Gauge score={score} /></div>
-        </div>
-        {alert && <div style={{ padding: "10px 14px", background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.4)", borderRadius: 8, fontSize: 12, color: "#f87171", marginBottom: 14 }}>{alert} — <GlossaryTip term="逆イールド">逆イールドとは？</GlossaryTip></div>}
-        <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: "14px 16px" }}>
-          <div style={{ fontSize: 10, color: C.dim, marginBottom: 6, ...mono }}>▶ 今すべきこと</div>
-          <div style={{ fontSize: 13, color: C.text, lineHeight: 1.9 }}>{cfg.action}</div>
-          {cfg.warn && <div style={{ fontSize: 12, color: cfg.color, marginTop: 8, opacity: 0.9 }}>⚠ {cfg.warn}</div>}
-        </div>
-      </div>
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 4 }}>なぜ「{cfg.ja}」と判定されているのか？</div>
-        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.9, marginBottom: 16 }}>以下の7つの指標を総合して判定しています。青い下線の用語はタップすると解説が出ます。</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
-          {INDICATOR_META.map(meta => {
-            const s = data[meta.key]; if (!s?.length) return null;
-            const v = s.at(-1).value; const sk = getSeason(meta.key, v); const icfg = SEASONS[sk];
-            return (
-              <div key={meta.key} style={{ background: C.surface2, border: `1px solid ${icfg.border}`, borderRadius: 8, padding: "12px 14px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <div>
-                    <div style={{ fontSize: 9, color: C.dim, marginBottom: 2 }}>{meta.sublabel}</div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{meta.term ? <GlossaryTip term={meta.term}>{meta.label}</GlossaryTip> : meta.label}</div>
-                  </div>
-                  <span style={{ fontSize: 16 }}>{icfg.emoji}</span>
-                </div>
-                <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.8 }}>{meta.explain(v)}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>景気の四季とは？</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          {["spring","summer","autumn","winter"].map(sk => {
-            const sc = SEASONS[sk]; const isNow = sk === season;
-            return (
-              <div key={sk} style={{ padding: "12px 14px", borderRadius: 8, background: isNow ? sc.bg : "rgba(0,0,0,0.2)", border: `1px solid ${isNow ? sc.border : C.border}` }}>
-                <div style={{ fontSize: 18, marginBottom: 4 }}>{sc.emoji} <span style={{ fontSize: 14, fontWeight: 700, color: sc.color }}>{sc.ja}</span> {isNow && <span style={{ fontSize: 9, color: sc.color, fontFamily: "IBM Plex Mono" }}>← 今ここ</span>}</div>
-                <div style={{ fontSize: 11, color: isNow ? C.muted : C.dim, lineHeight: 1.7 }}>{sc.tagline}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
+async function loadData(){
+  var btn=document.getElementById("refresh-btn");
+  if(btn){btn.disabled=true;btn.textContent="取得中…";}
+  document.getElementById("tab-today").innerHTML='<div class="loading-msg mono">データを取得中...</div>';
+  try{
+    var res=await fetch(GAS_URL);
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    var json=await res.json();
+    if(json.error) throw new Error(json.error);
+    renderAll(json.data||{}, json.updated||null);
+  }catch(e){
+    document.getElementById("tab-today").innerHTML='<div class="error-box">データ取得失敗。GASのウェブアプリが「全員がアクセス可能」になっているか確認してください。\n\n詳細: '+e.message+'</div>';
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent="↺ 更新";}
+  }
 }
 
-function DetailTab({ data }) {
-  const [openKey, setOpenKey] = useState(null);
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.9, padding: "12px 16px", background: C.surface, borderRadius: 8, border: `1px solid ${C.border}` }}>
-        各指標をクリックするとチャートが開きます。
-      </div>
-      {INDICATOR_META.map(meta => {
-        const s = data[meta.key]; if (!s?.length) return null;
-        const v = s.at(-1).value; const prev = s.at(-2);
-        const delta = prev ? v - prev.value : 0;
-        const sk = getSeason(meta.key, v); const cfg = SEASONS[sk];
-        const isOpen = openKey === meta.key;
-        return (
-          <div key={meta.key} style={{ background: C.surface, border: `1px solid ${cfg.border}`, borderRadius: 10, overflow: "hidden" }}>
-            <div onClick={() => setOpenKey(isOpen ? null : meta.key)} style={{ padding: "16px 18px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 9, color: C.dim, marginBottom: 2 }}>{meta.sublabel}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>{meta.term ? <GlossaryTip term={meta.term}>{meta.label}</GlossaryTip> : meta.label}</div>
-                <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.7 }}>{meta.explain(v)}</div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, marginLeft: 14 }}>
-                <span style={{ fontSize: 18 }}>{cfg.emoji}</span>
-                <span style={{ fontSize: 11, color: delta >= 0 ? "#4ade80" : "#f87171", fontFamily: "IBM Plex Mono" }}>{delta >= 0 ? "▲" : "▼"}{Math.abs(delta).toFixed(2)}</span>
-                <span style={{ fontSize: 9, color: C.dim }}>{isOpen ? "▲ 閉じる" : "▼ チャート"}</span>
-              </div>
-            </div>
-            {isOpen && (
-              <div style={{ padding: "0 18px 16px", borderTop: `1px solid ${C.border}` }}>
-                <div style={{ marginTop: 12 }}>
-                  <MiniChart series={s} color={cfg.color} unit={meta.unit} refs={meta.refs} height={100} />
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function GlossaryTab() {
-  const [active, setActive] = useState(null);
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.9, padding: "12px 16px", background: C.surface, borderRadius: 8, border: `1px solid ${C.border}` }}>
-        知らない言葉が出てきたらここで確認できます。クリックで開閉します。
-      </div>
-      {Object.entries(GLOSSARY).map(([term, def]) => (
-        <div key={term} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
-          <div onClick={() => setActive(a => a === term ? null : term)} style={{ padding: "14px 18px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{term}</div>
-              <div style={{ fontSize: 11, color: "#58a6ff", marginTop: 3 }}>{def.simple}</div>
-            </div>
-            <span style={{ color: C.dim, fontSize: 12 }}>{active === term ? "▲" : "▼"}</span>
-          </div>
-          {active === term && (
-            <div style={{ padding: "0 18px 16px", borderTop: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 12, color: C.muted, lineHeight: 2, marginTop: 12, marginBottom: 10 }}>{def.explain}</div>
-              <div style={{ padding: "10px 14px", background: "rgba(88,166,255,0.06)", border: "1px solid rgba(88,166,255,0.15)", borderRadius: 8, fontSize: 11, color: "#58a6ff", lineHeight: 1.8 }}>
-                💡 わかりやすく言うと…<br />{def.analogy}
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-const TABS = [
-  { label: "🏠 今日の結論", key: "today" },
-  { label: "📊 指標詳細",   key: "detail" },
-  { label: "📖 用語集",     key: "glossary" },
-];
-
-function App() {
-  const [data,    setData]    = useState({});
-  const [updated, setUpdated] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(null);
-  const [tab,     setTab]     = useState("today");
-
-  const load = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      const payload = await loadData();
-      setData(payload.data);
-      setUpdated(payload.updated);
-    } catch(e) {
-      setError("データ取得失敗: " + e.message);
-    } finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { load(); }, []);
-
-  const hasData = Object.values(data).some(d => d?.length > 0);
-
-  return (
-    <div style={{ minHeight: "100vh", background: C.bg, color: C.text }}>
-      <div style={{ padding: "16px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>金利定点観測</div>
-          <div style={{ fontSize: 10, color: C.dim, marginTop: 2 }}>堀井正孝「金利を見れば投資はうまくいく」準拠</div>
-        </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {updated && <span style={{ fontSize: 9, color: C.dimmer, fontFamily: "IBM Plex Mono" }}>{new Date(updated).toLocaleDateString("ja-JP")} 更新</span>}
-          <button onClick={load} disabled={loading} style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 5, padding: "5px 12px", color: loading ? C.dimmer : C.muted, fontSize: 10, cursor: loading ? "not-allowed" : "pointer", fontFamily: "IBM Plex Mono" }}>
-            {loading ? "取得中…" : "↺ 更新"}
-          </button>
-        </div>
-      </div>
-      <div style={{ display: "flex", overflowX: "auto", borderBottom: `1px solid ${C.border}`, marginTop: 14, padding: "0 20px" }}>
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{ background: "none", border: "none", cursor: "pointer", padding: "10px 14px", whiteSpace: "nowrap", color: tab === t.key ? C.text : C.dim, fontSize: 12, fontWeight: tab === t.key ? 700 : 400, borderBottom: tab === t.key ? "2px solid #58a6ff" : "2px solid transparent", marginBottom: -1 }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div style={{ padding: 20 }}>
-        {error && <div style={{ padding: "12px 16px", background: "rgba(248,113,113,0.07)", border: "1px solid rgba(248,113,113,0.3)", borderRadius: 8, fontSize: 12, color: "#f87171", marginBottom: 16 }}>{error}</div>}
-        {loading && !hasData && <div style={{ textAlign: "center", padding: 60, color: C.dimmer, fontSize: 12, fontFamily: "IBM Plex Mono" }}>データを取得中...</div>}
-        {hasData && tab === "today"   && <TodayTab  data={data} />}
-        {hasData && tab === "detail"  && <DetailTab data={data} />}
-        {tab === "glossary" && <GlossaryTab />}
-      </div>
-      <div style={{ padding: "0 20px 24px", fontSize: 9, color: C.dimmer, lineHeight: 2, fontFamily: "IBM Plex Mono" }}>
-        データ: FRED (St. Louis Fed) via Google Apps Script · 投資助言ではありません
-      </div>
-    </div>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+loadData();
 </script>
 </body>
 </html>
