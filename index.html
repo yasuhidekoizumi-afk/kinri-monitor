@@ -10,23 +10,17 @@
 body { background: #070b0f; color: #e6edf3; font-family: system-ui, -apple-system, 'Hiragino Sans', sans-serif; }
 .mono { font-family: 'IBM Plex Mono', monospace; }
 button { font-family: inherit; cursor: pointer; }
-
 .header { padding: 16px 20px 0; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 8px; }
 .header-right { display: flex; gap: 10px; align-items: center; }
 .refresh-btn { background: #161b22; border: 1px solid #21262d; border-radius: 5px; padding: 5px 12px; color: #8b949e; font-size: 10px; }
 .refresh-btn:disabled { color: #484f58; cursor: not-allowed; }
-
 .tabs { display: flex; overflow-x: auto; border-bottom: 1px solid #21262d; margin-top: 14px; padding: 0 20px; }
 .tab-btn { background: none; border: none; padding: 10px 14px; white-space: nowrap; color: #6e7681; font-size: 12px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tab-btn.active { color: #e6edf3; font-weight: 700; border-bottom-color: #58a6ff; }
-
 .content { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 .hidden { display: none !important; }
-
 .card { background: #0d1117; border: 1px solid #21262d; border-radius: 10px; padding: 20px; }
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-.grid-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-
 .ind-card { background: #161b22; border-radius: 8px; padding: 12px 14px; border: 1px solid; }
 .detail-card { background: #0d1117; border-radius: 10px; overflow: visible; border: 1px solid; }
 .detail-hdr { padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; }
@@ -34,17 +28,13 @@ button { font-family: inherit; cursor: pointer; }
 .gloss-card { background: #0d1117; border: 1px solid #21262d; border-radius: 10px; overflow: hidden; }
 .gloss-hdr { padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; }
 .gloss-body { padding: 0 18px 16px; border-top: 1px solid #21262d; }
-
 .chart-container { margin-top: 16px; width: 100%; }
-.chart-container svg { display: block; width: 100%; height: 320px; }
-
 .tip-wrap { position: relative; display: inline; }
 .tip-trigger { border-bottom: 1px dashed #58a6ff; color: #58a6ff; cursor: pointer; }
 .tip-box { display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 200;
   background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px; width: 280px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.6); font-size: 11px; line-height: 1.7; }
 .tip-box.open { display: block; }
-
 .error-box { padding: 12px 16px; background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.3);
   border-radius: 8px; font-size: 12px; color: #f87171; line-height: 1.9; white-space: pre-wrap; }
 .loading-msg { text-align: center; padding: 60px; color: #484f58; font-size: 12px; }
@@ -81,12 +71,20 @@ button { font-family: inherit; cursor: pointer; }
 <script>
 var GAS_URL = "https://script.google.com/macros/s/AKfycbx_av6z4ask99n_DdUudRgrrrtGYJH2Xj0ceRO8frTRbrwSjiMKbjTSkdQVOmra8ewF/exec";
 
+// ─── 定数 ────────────────────────────────────────────────────────
+var VALID_SEASONS = ["spring","summer","autumn","winter"];
+
 var S = {
-  spring: { ja:"春", emoji:"🌸", color:"#4ade80", border:"rgba(74,222,128,0.3)",  bg:"rgba(74,222,128,0.07)",  tagline:"景気は拡大中。積極的に動いて良い時期。",     action:"新規投資・事業拡張のチャンス。リスクを取る判断がしやすい局面。",     warn:null },
-  summer: { ja:"夏", emoji:"☀️", color:"#fbbf24", border:"rgba(251,191,36,0.3)",  bg:"rgba(251,191,36,0.07)",  tagline:"景気は天井圏。そろそろ注意が必要。",         action:"新規投資は慎重に。利益確定と手元資金の厚みを意識し始める。",         warn:"株価が高くても油断禁物。金利が先に動いている。" },
-  autumn: { ja:"秋", emoji:"🍂", color:"#fb923c", border:"rgba(251,146,60,0.3)",  bg:"rgba(251,146,60,0.07)",  tagline:"景気は縮小中。冬の準備を始める時期。",       action:"新規の大型投資は見送り。手元流動性を高め、守りの体制へ。",           warn:"景気後退が近い可能性。キャッシュを温存する。" },
-  winter: { ja:"冬", emoji:"❄️", color:"#f87171", border:"rgba(248,113,113,0.3)", bg:"rgba(248,113,113,0.07)", tagline:"景気は後退中。守り最優先。",                 action:"現金・安全資産を最大化。次の春が来たときに動ける準備を。",             warn:"焦って動かない。春のシグナルを待つ。" }
+  spring: { ja:"春", emoji:"🌸", color:"#4ade80", border:"rgba(74,222,128,0.3)",  bg:"rgba(74,222,128,0.07)",  tagline:"景気は拡大中。積極的に動いて良い時期。",   action:"新規投資・事業拡張のチャンス。リスクを取る判断がしやすい局面。",   warn:null },
+  summer: { ja:"夏", emoji:"☀️", color:"#fbbf24", border:"rgba(251,191,36,0.3)",  bg:"rgba(251,191,36,0.07)",  tagline:"景気は天井圏。そろそろ注意が必要。",       action:"新規投資は慎重に。利益確定と手元資金の厚みを意識し始める。",       warn:"株価が高くても油断禁物。金利が先に動いている。" },
+  autumn: { ja:"秋", emoji:"🍂", color:"#fb923c", border:"rgba(251,146,60,0.3)",  bg:"rgba(251,146,60,0.07)",  tagline:"景気は縮小中。冬の準備を始める時期。",     action:"新規の大型投資は見送り。手元流動性を高め、守りの体制へ。",         warn:"景気後退が近い可能性。キャッシュを温存する。" },
+  winter: { ja:"冬", emoji:"❄️", color:"#f87171", border:"rgba(248,113,113,0.3)", bg:"rgba(248,113,113,0.07)", tagline:"景気は後退中。守り最優先。",               action:"現金・安全資産を最大化。次の春が来たときに動ける準備を。",           warn:"焦って動かない。春のシグナルを待つ。" }
 };
+
+// 安全にS[key]を取得（fallback: spring）
+function safeS(key) {
+  return S[key] || S["spring"];
+}
 
 var GL = {
   "長短金利差":              { simple:"10年後の金利 と 今の金利 の差",               explain:"銀行が長期間お金を貸す際の金利と、短期間貸す際の金利の差です。通常は長期の方が高く差がプラスなら健全。マイナス（逆イールド）になると景気後退の前兆とされています。", analogy:"天気予報に例えると「晴れが続く見込み」なら長期予報が高め。「急に嵐が来る」と皆が思うと逆転する。" },
@@ -111,161 +109,157 @@ var WT  = { us_spread:3, us_ig:2, us_hy:2, jp_spread:2, vix:1, dxy:1, usdjpy:1 }
 var SC  = { spring:100, summer:65, autumn:30, winter:0 };
 var PRI = ["winter","autumn","summer","spring"];
 
-// 米国のみで判定
 var US_RULES = { us_spread:RULES.us_spread, us_ig:RULES.us_ig, us_hy:RULES.us_hy, vix:RULES.vix, dxy:RULES.dxy };
 var US_WT    = { us_spread:3, us_ig:2, us_hy:2, vix:1, dxy:1 };
-// 日本のみで判定
 var JP_RULES = { jp_spread:RULES.jp_spread, usdjpy:RULES.usdjpy };
 var JP_WT    = { jp_spread:3, usdjpy:1 };
 
 var INDS = [
   { key:"us_spread", label:"景気の先行指標",     sub:"米・長短金利差（10年−2年）",        term:"長短金利差",
-    ex:function(v){ return v<0?v.toFixed(2)+"% ─ マイナス（逆イールド）。景気後退の前兆。":v<0.5?v.toFixed(2)+"% ─ ゼロに近く要注意。":v<1.5?v.toFixed(2)+"% ─ プラスだが警戒が必要。":v.toFixed(2)+"% ─ 健全。景気拡大のサイン。"; }, r1:1.0, r2:0, unit:"%" },
+    ex:function(v){ return v<0?v.toFixed(2)+"% — マイナス（逆イールド）。景気後退の前兆。":v<0.5?v.toFixed(2)+"% — ゼロに近く要注意。":v<1.5?v.toFixed(2)+"% — プラスだが警戒が必要。":v.toFixed(2)+"% — 健全。景気拡大のサイン。"; }, r1:1.0, r2:0, unit:"%" },
   { key:"us_ig",     label:"大企業の信用度",     sub:"米・社債スプレッド（投資適格）",     term:"IG（投資適格級）",
-    ex:function(v){ return v<1.0?v.toFixed(2)+"% ─ 非常にタイト。市場に油断がある可能性。":v<1.5?v.toFixed(2)+"% ─ 正常な水準。":v<2.5?v.toFixed(2)+"% ─ やや拡大。警戒が必要。":v.toFixed(2)+"% ─ 大幅拡大。危険水準。"; }, r1:1.5, r2:2.5, unit:"%" },
+    ex:function(v){ return v<1.0?v.toFixed(2)+"% — 非常にタイト。":v<1.5?v.toFixed(2)+"% — 正常な水準。":v<2.5?v.toFixed(2)+"% — やや拡大。警戒。":v.toFixed(2)+"% — 大幅拡大。危険水準。"; }, r1:1.5, r2:2.5, unit:"%" },
   { key:"us_hy",     label:"リスク資産の信用度", sub:"米・社債スプレッド（ハイイールド）", term:"HY（ハイイールド）",
-    ex:function(v){ return v<3.5?v.toFixed(2)+"% ─ 好調。信用サイクルの春。":v<5.0?v.toFixed(2)+"% ─ 適正水準。":v<7.0?v.toFixed(2)+"% ─ 拡大中。ハイリスク投資は避ける。":v.toFixed(2)+"% ─ 危機的水準。"; }, r1:5.0, r2:7.0, unit:"%" },
+    ex:function(v){ return v<3.5?v.toFixed(2)+"% — 好調。信用の春。":v<5.0?v.toFixed(2)+"% — 適正水準。":v<7.0?v.toFixed(2)+"% — 拡大中。注意。":v.toFixed(2)+"% — 危機的水準。"; }, r1:5.0, r2:7.0, unit:"%" },
   { key:"jp_spread", label:"日本の景気先行指標", sub:"日・長短金利差（JGB−コール）",      term:"長短金利差",
-    ex:function(v){ return v>1.5?v.toFixed(2)+"% ─ 健全。日銀の利上げ余地あり。":v>0.5?v.toFixed(2)+"% ─ 利上げサイクル進行中。":v>0?v.toFixed(2)+"% ─ フラット化。日銀の次の動きに注目。":v.toFixed(2)+"% ─ 逆イールド。"; }, r1:1.0, r2:0, unit:"%" },
+    ex:function(v){ return v>1.5?v.toFixed(2)+"% — 健全。":v>0.5?v.toFixed(2)+"% — 利上げサイクル進行中。":v>0?v.toFixed(2)+"% — フラット化。":v.toFixed(2)+"% — 逆イールド。"; }, r1:1.0, r2:0, unit:"%" },
   { key:"vix",       label:"市場の不安レベル",   sub:"VIX（恐怖指数）",                  term:"VIX",
-    ex:function(v){ return v<15?v.toFixed(1)+" ─ 非常に安心。楽観的すぎる時こそ注意。":v<20?v.toFixed(1)+" ─ 適度な緊張感。":v<30?v.toFixed(1)+" ─ 不安が広がっています。":v.toFixed(1)+" ─ パニック水準。"; }, r1:20, r2:30, unit:"" },
+    ex:function(v){ return v<15?v.toFixed(1)+" — 安心。楽観すぎに注意。":v<20?v.toFixed(1)+" — 適度な緊張感。":v<30?v.toFixed(1)+" — 不安が広がっています。":v.toFixed(1)+" — パニック水準。"; }, r1:20, r2:30, unit:"" },
   { key:"usdjpy",    label:"円とドルの力関係",   sub:"ドル円レート",                     term:null,
-    ex:function(v){ return v>160?v.toFixed(0)+"円 ─ 超円安。介入リスク高。":v>150?v.toFixed(0)+"円 ─ 円安警戒圏。":v>140?v.toFixed(0)+"円 ─ 安定圏。":v.toFixed(0)+"円 ─ 円高。"; }, r1:150, r2:160, unit:"円" },
+    ex:function(v){ return v>160?v.toFixed(0)+"円 — 超円安。介入リスク高。":v>150?v.toFixed(0)+"円 — 円安警戒圏。":v>140?v.toFixed(0)+"円 — 安定圏。":v.toFixed(0)+"円 — 円高。"; }, r1:150, r2:160, unit:"円" },
   { key:"dxy",       label:"ドルの世界的な強さ", sub:"ドルインデックス（DXY）",          term:"ドルインデックス（DXY）",
-    ex:function(v){ return v>106?v.toFixed(1)+" ─ ドル独歩高。新興国に打撃。":v>102?v.toFixed(1)+" ─ ドルやや強い。":v<98?v.toFixed(1)+" ─ ドル安。新興国に資金流入。":v.toFixed(1)+" ─ 安定圏。"; }, r1:100, r2:105, unit:"" }
+    ex:function(v){ return v>106?v.toFixed(1)+" — ドル独歩高。":v>102?v.toFixed(1)+" — ドルやや強い。":v<98?v.toFixed(1)+" — ドル安。":v.toFixed(1)+" — 安定圏。"; }, r1:100, r2:105, unit:"" }
 ];
 
-function gsn(key,v){ return RULES[key]?RULES[key](v):"spring"; }
+// ─── ロジック ────────────────────────────────────────────────────
+function gsn(key,v){
+  if(RULES[key]) {
+    var r = RULES[key](v);
+    return VALID_SEASONS.indexOf(r) >= 0 ? r : "spring";
+  }
+  return "spring";
+}
 
-function calcSeason(data, rules, weights){
-  var arr=[];
-  Object.keys(rules).forEach(function(k){ var s=data[k]; if(s&&s.length) arr.push(rules[k](s[s.length-1].value)); });
+function calcSeason(data, rules){
+  var arr = [];
+  Object.keys(rules).forEach(function(k){
+    var s = data[k];
+    if(s && s.length){
+      var r = rules[k](s[s.length-1].value);
+      if(VALID_SEASONS.indexOf(r) >= 0) arr.push(r);
+    }
+  });
   for(var i=0;i<PRI.length;i++){ if(arr.indexOf(PRI[i])>=0) return PRI[i]; }
   return "spring";
 }
 
 function calcScore(data, rules, weights){
-  var tw=0,ts=0;
-  Object.keys(weights).forEach(function(k){ var s=data[k]; if(!s||!s.length) return; ts+=SC[rules[k](s[s.length-1].value)]*weights[k]; tw+=weights[k]; });
-  return tw?Math.round(ts/tw):50;
+  var tw=0, ts=0;
+  Object.keys(weights).forEach(function(k){
+    var s=data[k];
+    if(!s||!s.length) return;
+    var r = rules[k](s[s.length-1].value);
+    if(VALID_SEASONS.indexOf(r) >= 0){
+      ts += SC[r] * weights[k];
+      tw += weights[k];
+    }
+  });
+  return tw ? Math.round(ts/tw) : 50;
 }
 
-function overall(data){ return calcSeason(data, RULES, WT); }
-function envScore(data){ return calcScore(data, RULES, WT); }
+function getLatest(data, key){
+  var s = data[key];
+  return (s && s.length) ? s[s.length-1].value : null;
+}
 
-// ─── 日本版チェックリスト ────────────────────────────────────
+// ─── 日本版チェックリスト ─────────────────────────────────────
 function jpChecklist(data){
-  var jpSea  = calcSeason(data, JP_RULES, JP_WT);
-  var usSea  = calcSeason(data, US_RULES, US_WT);
-  var jpSpv  = (data.jp_spread&&data.jp_spread.length)?data.jp_spread[data.jp_spread.length-1].value:null;
-  var usdjpv = (data.usdjpy&&data.usdjpy.length)?data.usdjpy[data.usdjpy.length-1].value:null;
+  var jpSea  = calcSeason(data, JP_RULES);
+  var usSea  = calcSeason(data, US_RULES);
+  var jpSpv  = getLatest(data, "jp_spread");
+  var usdjpv = getLatest(data, "usdjpy");
+  var items  = [];
 
-  var items = [];
+  if(jpSpv !== null){
+    if(jpSpv > 1.0)    items.push({ok:true,  text:"長短金利差が拡大中（"+jpSpv.toFixed(2)+"%）。日銀の利上げ余地あり。銀行株・金融セクターに追い風。"});
+    else if(jpSpv > 0) items.push({ok:null,  text:"長短金利差がフラット化（"+jpSpv.toFixed(2)+"%）。日銀の次の一手を慎重に見極める局面。"});
+    else               items.push({ok:false, text:"日本も逆イールド（"+jpSpv.toFixed(2)+"%）。金融環境の急速な引き締まりに注意。"});
+  }
 
-  // 日銀サイクル判定
-  if(jpSpv!==null){
-    if(jpSpv>1.0){
-      items.push({ ok:true,  text:"長短金利差が拡大中（"+jpSpv.toFixed(2)+"%）。日銀の利上げ余地あり。銀行株・金融セクターに追い風。" });
-    } else if(jpSpv>0){
-      items.push({ ok:null,  text:"長短金利差がフラット化（"+jpSpv.toFixed(2)+"%）。日銀の次の一手を慎重に見極める局面。" });
+  if(usdjpv !== null){
+    if(usdjpv > 155){
+      items.push({ok:false, text:"超円安水準（"+usdjpv.toFixed(0)+"円）。輸入コスト上昇・物価高が続きやすい。日銀介入リスクあり。"});
+      items.push({ok:true,  text:"円安の恩恵：輸出企業・インバウンド関連株が有利な局面。"});
+    } else if(usdjpv > 145){
+      items.push({ok:null,  text:"円安が継続（"+usdjpv.toFixed(0)+"円）。米国事業の円換算収益は有利。輸入コストは高止まり。"});
+    } else if(usdjpv > 135){
+      items.push({ok:true,  text:"円相場は安定圏（"+usdjpv.toFixed(0)+"円）。為替リスクが低く事業計画を立てやすい水準。"});
     } else {
-      items.push({ ok:false, text:"日本も逆イールド（"+jpSpv.toFixed(2)+"%）。金融環境の急速な引き締まりに注意。" });
+      items.push({ok:false, text:"円高進行（"+usdjpv.toFixed(0)+"円）。米国売上の円換算が目減り。輸出企業・外貨資産には逆風。"});
     }
   }
 
-  // 円安円高判定
-  if(usdjpv!==null){
-    if(usdjpv>155){
-      items.push({ ok:false, text:"超円安水準（"+usdjpv.toFixed(0)+"円）。輸入コスト上昇・物価高が続きやすい。輸出企業には有利だが介入リスクあり。" });
-      items.push({ ok:true,  text:"円安の恩恵：輸出企業・インバウンド関連株が有利な局面。" });
-    } else if(usdjpv>145){
-      items.push({ ok:null,  text:"円安が継続（"+usdjpv.toFixed(0)+"円）。米国事業の円換算収益は有利。輸入コストは引き続き高止まり。" });
-    } else if(usdjpv>135){
-      items.push({ ok:true,  text:"円相場は安定圏（"+usdjpv.toFixed(0)+"円）。為替リスクが低く、事業計画を立てやすい水準。" });
-    } else {
-      items.push({ ok:false, text:"円高進行（"+usdjpv.toFixed(0)+"円）。米国売上の円換算が目減り。輸出企業・外貨資産には逆風。" });
-    }
-  }
-
-  // 米日の季節差
   if(usSea !== jpSea){
-    items.push({ ok:null, text:"⚠ 米国（"+S[usSea].ja+"）と日本（"+S[jpSea].ja+"）の景気サイクルがズレています。米国に連動しない日本固有の動きに注目。" });
+    items.push({ok:null, text:"米国（"+safeS(usSea).ja+"）と日本（"+safeS(jpSea).ja+"）のサイクルがズレています。米国の動向は6〜12ヶ月遅れで日本に波及することが多い。"});
   } else {
-    items.push({ ok:true, text:"米国と日本の景気サイクルが一致（"+S[usSea].ja+"）。グローバルな方向感と国内動向が同じ方向を向いています。" });
+    items.push({ok:true, text:"米国と日本の景気サイクルが一致（"+safeS(usSea).ja+"）。グローバルな方向感と国内動向が同じ方向を向いています。"});
   }
 
-  // 日銀利上げ局面の注意
-  if(jpSpv!==null && jpSpv>0 && jpSpv<1.2){
-    items.push({ ok:false, text:"日銀の利上げサイクル中は住宅ローン・変動金利の借入コストが上昇しやすい。固定金利への切り替えを検討する局面。" });
-    items.push({ ok:true,  text:"利上げ局面では預金金利も上昇。現金・短期債の利回りが改善するため、流動性資産の魅力が高まります。" });
+  if(jpSpv !== null && jpSpv > 0 && jpSpv < 1.2){
+    items.push({ok:false, text:"日銀の利上げサイクル中は住宅ローン・変動金利の借入コストが上昇しやすい。"});
+    items.push({ok:true,  text:"利上げ局面では預金金利も上昇。現金・短期債の利回りが改善します。"});
   }
 
-  // 米国が冬・秋のとき
-  if(usSea==="winter"||usSea==="autumn"){
-    items.push({ ok:false, text:"米国が"+S[usSea].ja+"のサイクル。米国景気の影響を受けやすい輸出関連株・外需企業は慎重に。" });
-    items.push({ ok:true,  text:"内需・ディフェンシブセクター（食品・医療・生活必需品）が相対的に安定しやすい局面。" });
+  if(usSea === "winter" || usSea === "autumn"){
+    items.push({ok:false, text:"米国が"+safeS(usSea).ja+"のサイクル。輸出関連株・外需企業は慎重に。"});
+    items.push({ok:true,  text:"内需・ディフェンシブセクター（食品・医療・生活必需品）が相対的に安定しやすい局面。"});
   }
 
-  return { season: jpSea, items: items };
+  return {season: jpSea, items: items};
 }
 
-function gauge(sc){
-  var sk=sc>=75?"spring":sc>=50?"summer":sc>=25?"autumn":"winter";
-  var c=S[sk].color;
-  var a=((sc/100)*180-180)*Math.PI/180;
-  var nx=(60+50*Math.cos(a)).toFixed(1), ny=(65+50*Math.sin(a)).toFixed(1);
-  var lx=(60+36*Math.cos(a)).toFixed(1), ly=(65+36*Math.sin(a)).toFixed(1);
-  return '<svg width="120" height="75" viewBox="0 0 120 75">'
-    +'<path d="M 10 65 A 50 50 0 0 1 110 65" stroke="#1c2128" stroke-width="10" fill="none" stroke-linecap="round"/>'
-    +'<path d="M 10 65 A 50 50 0 0 1 '+nx+' '+ny+'" stroke="'+c+'" stroke-width="10" fill="none" stroke-linecap="round"/>'
-    +'<line x1="60" y1="65" x2="'+lx+'" y2="'+ly+'" stroke="'+c+'" stroke-width="2.5" stroke-linecap="round"/>'
-    +'<circle cx="60" cy="65" r="5" fill="'+c+'"/>'
-    +'<text x="60" y="52" text-anchor="middle" font-family="IBM Plex Mono" font-size="16" font-weight="700" fill="'+c+'">'+sc+'</text>'
-    +'<text x="10" y="75" font-size="7" fill="#484f58">冬</text>'
-    +'<text x="105" y="75" font-size="7" fill="#484f58">春</text>'
-    +'</svg>';
-}
-
+// ─── seasonCard(flag, season, score, label) ──────────────────
 function seasonCard(flag, season, score, label){
-  var cfg=S[season];
-  var sc2=score>=75?"spring":score>=50?"summer":score>=25?"autumn":"winter";
-  var gc=S[sc2].color;
-  var a=((score/100)*180-180)*Math.PI/180;
-  var nx=(50+42*Math.cos(a)).toFixed(1), ny=(54+42*Math.sin(a)).toFixed(1);
-  var lx=(50+30*Math.cos(a)).toFixed(1), ly=(54+30*Math.sin(a)).toFixed(1);
-  var miniGauge='<svg width="100" height="62" viewBox="0 0 100 62">'
+  var cfg = safeS(season);
+  var sk  = score>=75?"spring":score>=50?"summer":score>=25?"autumn":"winter";
+  var gc  = safeS(sk).color;
+  var a   = ((score/100)*180-180)*Math.PI/180;
+  var nx  = (50+42*Math.cos(a)).toFixed(1), ny=(54+42*Math.sin(a)).toFixed(1);
+  var lx  = (50+30*Math.cos(a)).toFixed(1), ly=(54+30*Math.sin(a)).toFixed(1);
+  var mg  = '<svg width="100" height="62" viewBox="0 0 100 62">'
     +'<path d="M 8 54 A 42 42 0 0 1 92 54" stroke="#1c2128" stroke-width="8" fill="none" stroke-linecap="round"/>'
     +'<path d="M 8 54 A 42 42 0 0 1 '+nx+' '+ny+'" stroke="'+gc+'" stroke-width="8" fill="none" stroke-linecap="round"/>'
     +'<line x1="50" y1="54" x2="'+lx+'" y2="'+ly+'" stroke="'+gc+'" stroke-width="2" stroke-linecap="round"/>'
     +'<circle cx="50" cy="54" r="4" fill="'+gc+'"/>'
     +'<text x="50" y="42" text-anchor="middle" font-family="IBM Plex Mono" font-size="13" font-weight="700" fill="'+gc+'">'+score+'</text>'
     +'</svg>';
-  return '<div style="background:'+cfg.bg+';border:1px solid '+cfg.border+';border-radius:10px;padding:16px 18px;flex:1;min-width:200px">'
+  return '<div style="background:'+cfg.bg+';border:1px solid '+cfg.border+';border-radius:10px;padding:16px 18px;flex:1;min-width:180px">'
     +'<div style="font-size:9px;color:'+cfg.color+';letter-spacing:0.12em;margin-bottom:8px;opacity:0.8" class="mono">'+flag+' '+label+'</div>'
-    +'<div style="display:flex;align-items:center;gap:12px">'
+    +'<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
       +'<div style="font-size:36px;line-height:1">'+cfg.emoji+'</div>'
       +'<div>'
         +'<div style="font-size:26px;font-weight:800;color:'+cfg.color+';line-height:1">'+cfg.ja+'</div>'
         +'<div style="font-size:11px;color:#8b949e;margin-top:3px">'+cfg.tagline+'</div>'
       +'</div>'
-      +miniGauge
+      +mg
     +'</div>'
   +'</div>';
 }
 
+// ─── チャート ─────────────────────────────────────────────────
 function buildChart(series, color, r1, r2, containerId){
-  var container=document.getElementById(containerId);
+  var container = document.getElementById(containerId);
   if(!container) return;
-  container.innerHTML="";
-  if(!series||series.length<2){
-    container.innerHTML='<div style="height:320px;display:flex;align-items:center;justify-content:center;color:#484f58;font-size:12px">データなし</div>';
+  container.innerHTML = "";
+  if(!series || series.length < 2){
+    container.innerHTML = '<div style="height:280px;display:flex;align-items:center;justify-content:center;color:#484f58;font-size:12px">データなし</div>';
     return;
   }
-  var ns="http://www.w3.org/2000/svg";
-  var svg=document.createElementNS(ns,"svg");
-  svg.setAttribute("viewBox","0 0 1000 320");
-  svg.style.width="100%"; svg.style.height="320px"; svg.style.display="block";
-  var pl=55,pr=10,pt=12,pb=36,W=1000,H=320,cw=W-pl-pr,ch=H-pt-pb;
+  var ns = "http://www.w3.org/2000/svg";
+  var svg = document.createElementNS(ns,"svg");
+  svg.setAttribute("viewBox","0 0 1000 280");
+  svg.style.width="100%"; svg.style.height="280px"; svg.style.display="block";
+  var pl=55,pr=10,pt=10,pb=32,W=1000,H=280,cw=W-pl-pr,ch=H-pt-pb;
   var vals=series.map(function(d){return d.value;});
   var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals), rng=mx-mn||1;
   mn-=rng*0.1; mx+=rng*0.1; rng=mx-mn;
@@ -275,58 +269,54 @@ function buildChart(series, color, r1, r2, containerId){
   bg.setAttribute("x",pl);bg.setAttribute("y",pt);bg.setAttribute("width",cw);bg.setAttribute("height",ch);
   bg.setAttribute("fill","rgba(255,255,255,0.015)");bg.setAttribute("rx","3");svg.appendChild(bg);
   for(var gi=0;gi<=4;gi++){
-    var gv=mn+(gi/4)*rng,gy=py(gv);
+    var gv=mn+(gi/4)*rng, gy=py(gv);
     var gl=document.createElementNS(ns,"line");
     gl.setAttribute("x1",pl);gl.setAttribute("y1",gy.toFixed(1));gl.setAttribute("x2",pl+cw);gl.setAttribute("y2",gy.toFixed(1));
     gl.setAttribute("stroke","#21262d");gl.setAttribute("stroke-width","1");svg.appendChild(gl);
     var yt=document.createElementNS(ns,"text");
     yt.setAttribute("x",(pl-5).toString());yt.setAttribute("y",(gy+4).toFixed(1));
-    yt.setAttribute("text-anchor","end");yt.setAttribute("font-size","11");
-    yt.setAttribute("fill","#6e7681");yt.setAttribute("font-family","IBM Plex Mono");
+    yt.setAttribute("text-anchor","end");yt.setAttribute("font-size","11");yt.setAttribute("fill","#6e7681");yt.setAttribute("font-family","IBM Plex Mono");
     yt.textContent=gv.toFixed(2);svg.appendChild(yt);
   }
   [[r1,"#fbbf24"],[r2,"#f87171"]].forEach(function(p){
     if(p[0]===null||p[0]===undefined) return;
-    var yy=py(p[0]);if(yy<pt||yy>pt+ch) return;
+    var yy=py(p[0]); if(yy<pt||yy>pt+ch) return;
     var rl=document.createElementNS(ns,"line");
     rl.setAttribute("x1",pl);rl.setAttribute("y1",yy.toFixed(1));rl.setAttribute("x2",pl+cw);rl.setAttribute("y2",yy.toFixed(1));
-    rl.setAttribute("stroke",p[1]);rl.setAttribute("stroke-width","1.5");rl.setAttribute("stroke-dasharray","6,4");rl.setAttribute("opacity","0.6");
-    svg.appendChild(rl);
+    rl.setAttribute("stroke",p[1]);rl.setAttribute("stroke-width","1.5");rl.setAttribute("stroke-dasharray","6,4");rl.setAttribute("opacity","0.6");svg.appendChild(rl);
   });
   var ptStr=series.map(function(d,i){return px(i).toFixed(1)+","+py(d.value).toFixed(1);}).join(" ");
   var line=document.createElementNS(ns,"polyline");
   line.setAttribute("points",ptStr);line.setAttribute("fill","none");line.setAttribute("stroke",color);
-  line.setAttribute("stroke-width","2.5");line.setAttribute("stroke-linejoin","round");line.setAttribute("stroke-linecap","round");
-  svg.appendChild(line);
+  line.setAttribute("stroke-width","2.5");line.setAttribute("stroke-linejoin","round");line.setAttribute("stroke-linecap","round");svg.appendChild(line);
   for(var xi=0;xi<=5;xi++){
     var idx=Math.round((xi/5)*(series.length-1));
     var xt=document.createElementNS(ns,"text");
     xt.setAttribute("x",px(idx).toFixed(1));xt.setAttribute("y",(H-8).toString());
-    xt.setAttribute("text-anchor","middle");xt.setAttribute("font-size","11");
-    xt.setAttribute("fill","#6e7681");xt.setAttribute("font-family","IBM Plex Mono");
+    xt.setAttribute("text-anchor","middle");xt.setAttribute("font-size","11");xt.setAttribute("fill","#6e7681");xt.setAttribute("font-family","IBM Plex Mono");
     xt.textContent=series[idx].date.slice(0,7);svg.appendChild(xt);
   }
   container.appendChild(svg);
 }
 
+// ─── ツールチップ ────────────────────────────────────────────
 var TC=0;
 function tip(term,label){
   if(!term||!GL[term]) return label;
-  var id="t"+(TC++); var g=GL[term];
-  return '<span class="tip-wrap">'
-    +'<span class="tip-trigger" onclick="tg(\''+id+'\')">'+label+'</span>'
+  var id="t"+(TC++), g=GL[term];
+  return '<span class="tip-wrap"><span class="tip-trigger" onclick="tg(\''+id+'\')">'+label+'</span>'
     +'<div class="tip-box" id="'+id+'">'
       +'<div style="font-size:9px;color:#58a6ff;letter-spacing:0.1em;margin-bottom:6px" class="mono">用語解説</div>'
       +'<div style="font-size:12px;font-weight:700;margin-bottom:6px">'+g.simple+'</div>'
       +'<div style="color:#8b949e;line-height:1.8;margin-bottom:6px">'+g.explain+'</div>'
       +'<div style="font-size:10px;color:#6e7681;line-height:1.7;border-top:1px solid #21262d;padding-top:6px">💡 '+g.analogy+'</div>'
       +'<button onclick="ct(\''+id+'\',event)" style="position:absolute;top:8px;right:10px;background:none;border:none;color:#6e7681;font-size:14px">×</button>'
-    +'</div>'
-  +'</span>';
+    +'</div></span>';
 }
 function tg(id){var e=document.getElementById(id);if(e) e.classList.toggle("open");}
 function ct(id,ev){var e=document.getElementById(id);if(e) e.classList.remove("open");if(ev) ev.stopPropagation();}
 
+// ─── タブ切り替え ────────────────────────────────────────────
 function switchTab(name,btn){
   ["today","japan","detail","glossary"].forEach(function(t){
     document.getElementById("tab-"+t).classList.toggle("hidden",t!==name);
@@ -349,200 +339,199 @@ function tdg(key){
     body.classList.remove("hidden"); if(tglEl) tglEl.textContent="▲ 閉じる"; openKey=key;
     var m=null;
     for(var i=0;i<INDS.length;i++){if(INDS[i].key===key){m=INDS[i];break;}}
-    if(m&&CURRENT_DATA[key]){
+    if(m && CURRENT_DATA[key]){
       var sk=gsn(key,CURRENT_DATA[key][CURRENT_DATA[key].length-1].value);
-      buildChart(CURRENT_DATA[key],S[sk].color,m.r1,m.r2,"chart-"+key);
+      buildChart(CURRENT_DATA[key],safeS(sk).color,m.r1,m.r2,"chart-"+key);
     }
   }
 }
 
 function glg(id){
-  var el=document.getElementById(id),ar=document.getElementById("ar-"+id);
+  var el=document.getElementById(id), ar=document.getElementById("ar-"+id);
   if(!el) return; var h=el.classList.toggle("hidden"); if(ar) ar.textContent=h?"▼":"▲";
 }
 
 var CURRENT_DATA={};
 
-function renderAll(data,updated){
-  TC=0; CURRENT_DATA=data; openKey=null;
-  if(updated) document.getElementById("updated-label").textContent=new Date(updated).toLocaleDateString("ja-JP")+" 更新";
+// ─── 描画 ────────────────────────────────────────────────────
+function renderAll(data, updated){
+  try {
+    TC=0; CURRENT_DATA=data; openKey=null;
+    if(updated) document.getElementById("updated-label").textContent=new Date(updated).toLocaleDateString("ja-JP")+" 更新";
 
-  var usSea  = calcSeason(data, US_RULES, US_WT);
-  var usScore = calcScore(data, US_RULES, US_WT);
-  var jpSea  = calcSeason(data, JP_RULES, JP_WT);
-  var jpScore = calcScore(data, JP_RULES, JP_WT);
-  var allSea  = overall(data);
-  var allSc   = envScore(data);
-  var cfg     = S[allSea];
+    var usSea   = calcSeason(data, US_RULES);
+    var usScore = calcScore(data, US_RULES, US_WT);
+    var jpSea   = calcSeason(data, JP_RULES);
+    var jpScore = calcScore(data, JP_RULES, JP_WT);
+    var allSea  = calcSeason(data, RULES);
+    var cfg     = safeS(allSea);
 
-  var usv=(data.us_spread&&data.us_spread.length)?data.us_spread[data.us_spread.length-1].value:0;
-  var alertH=usv<=0
-    ?'<div style="padding:10px 14px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-size:12px;color:#f87171;margin-bottom:14px">🚨 米国 逆イールド発生中 — '+tip("逆イールド","逆イールドとは？")+'</div>'
-    :usv<=1.0
-    ?'<div style="padding:10px 14px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-size:12px;color:#f87171;margin-bottom:14px">⚡ 第1警戒（米・長短金利差1%以下）</div>'
-    :"";
+    var usv = getLatest(data,"us_spread") || 0;
+    var alertH = usv <= 0
+      ? '<div style="padding:10px 14px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-size:12px;color:#f87171;margin-bottom:14px">🚨 米国 逆イールド発生中 — '+tip("逆イールド","逆イールドとは？")+'</div>'
+      : usv <= 1.0
+      ? '<div style="padding:10px 14px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-size:12px;color:#f87171;margin-bottom:14px">⚡ 第1警戒（米・長短金利差1%以下）</div>'
+      : "";
 
-  // 米日並列バナー
-  var parallelBanner='<div style="display:flex;gap:12px;flex-wrap:wrap">'
-    +seasonCard("🇺🇸","米国",usSea,usScore,"米国の景気サイクル")
-    +seasonCard("🇯🇵","日本",jpSea,jpScore,"日本の景気サイクル")
-    +'</div>';
+    var parallelBanner = '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">'
+      + seasonCard("🇺🇸", usSea, usScore, "米国の景気サイクル")
+      + seasonCard("🇯🇵", jpSea, jpScore, "日本の景気サイクル")
+      + '</div>';
 
-  // ズレ警告
-  var diffAlert="";
-  if(usSea!==jpSea){
-    diffAlert='<div style="padding:12px 16px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.2);border-radius:8px;font-size:12px;color:#58a6ff;line-height:1.9">'
-      +'💡 <strong>米国と日本でサイクルがズレています。</strong><br>'
-      +'米国は「'+S[usSea].ja+'」、日本は「'+S[jpSea].ja+'」。米国の動向が6〜12ヶ月遅れで日本に波及することが多い。日本固有の動きに注目しつつ、米国のサイクルが先に変わるタイミングに備えることが重要。'
+    var diffAlert = usSea !== jpSea
+      ? '<div style="padding:12px 16px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.2);border-radius:8px;font-size:12px;color:#58a6ff;line-height:1.9;margin-bottom:14px">'
+        +'💡 <strong>米国と日本でサイクルがズレています。</strong><br>米国は「'+safeS(usSea).ja+'」、日本は「'+safeS(jpSea).ja+'」。米国の動向が6〜12ヶ月遅れで日本に波及することが多い。'
+        +'</div>'
+      : "";
+
+    var indH = INDS.map(function(m){
+      var s=data[m.key]; if(!s||!s.length) return "";
+      var v=s[s.length-1].value, sk=gsn(m.key,v), ic=safeS(sk);
+      return '<div class="ind-card" style="border-color:'+ic.border+'">'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:6px">'
+          +'<div><div style="font-size:9px;color:#6e7681;margin-bottom:2px">'+m.sub+'</div>'
+          +'<div style="font-size:12px;font-weight:700">'+(m.term?tip(m.term,m.label):m.label)+'</div></div>'
+          +'<span style="font-size:16px">'+ic.emoji+'</span>'
+        +'</div>'
+        +'<div style="font-size:11px;color:#8b949e;line-height:1.8">'+m.ex(v)+'</div>'
       +'</div>';
+    }).join("");
+
+    document.getElementById("tab-today").innerHTML =
+      '<div style="background:'+cfg.bg+';border:2px solid '+cfg.border+';border-radius:12px;padding:20px 22px">'
+        +'<div style="font-size:9px;color:'+cfg.color+';letter-spacing:0.18em;margin-bottom:10px;opacity:0.8" class="mono">総合・景気サイクル判定</div>'
+        +alertH+parallelBanner+diffAlert
+        +'<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:14px 16px">'
+          +'<div style="font-size:10px;color:#6e7681;margin-bottom:6px" class="mono">▶ 総合判定：今すべきこと</div>'
+          +'<div style="font-size:13px;line-height:1.9">'+cfg.action+'</div>'
+          +(cfg.warn?'<div style="font-size:12px;color:'+cfg.color+';margin-top:8px;opacity:0.9">⚠ '+cfg.warn+'</div>':"")
+        +'</div>'
+      +'</div>'
+      +'<div class="card">'
+        +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">判定の根拠となる7指標</div>'
+        +'<div style="font-size:12px;color:#8b949e;line-height:1.9;margin-bottom:16px">青い下線の用語はタップすると解説が出ます。</div>'
+        +'<div class="grid-2">'+indH+'</div>'
+      +'</div>';
+
+    // 日本の視点タブ
+    TC=50;
+    var cl=jpChecklist(data);
+    var jpCfg=safeS(cl.season);
+    var clH=cl.items.map(function(item){
+      var icon=item.ok===true?"✅":item.ok===false?"⛔":"💡";
+      var col=item.ok===true?"#e6edf3":item.ok===false?"#8b949e":"#58a6ff";
+      return '<div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-start">'
+        +'<span style="font-size:16px;flex-shrink:0">'+icon+'</span>'
+        +'<span style="font-size:13px;color:'+col+';line-height:1.8">'+item.text+'</span>'
+      +'</div>';
+    }).join("");
+
+    var jpSpv  = getLatest(data,"jp_spread");
+    var usdjpv = getLatest(data,"usdjpy");
+    var usCfg  = safeS(usSea), jpCfg2=safeS(jpSea);
+
+    document.getElementById("tab-japan").innerHTML =
+      '<div style="background:'+jpCfg.bg+';border:2px solid '+jpCfg.border+';border-radius:12px;padding:20px 22px">'
+        +'<div style="font-size:9px;color:'+jpCfg.color+';letter-spacing:0.18em;margin-bottom:8px;opacity:0.8" class="mono">🇯🇵 日本の景気サイクル</div>'
+        +'<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">'
+          +'<div style="font-size:48px;line-height:1">'+jpCfg.emoji+'</div>'
+          +'<div><div style="font-size:32px;font-weight:800;color:'+jpCfg.color+';line-height:1">'+jpCfg.ja+'</div>'
+          +'<div style="font-size:13px;color:#8b949e;margin-top:4px">'+jpCfg.tagline+'</div></div>'
+        +'</div>'
+      +'</div>'
+      +'<div class="card">'
+        +'<div style="font-size:13px;font-weight:700;margin-bottom:12px">🇺🇸 米国 vs 🇯🇵 日本 — 今の位置</div>'
+        +'<div style="display:flex;gap:12px;flex-wrap:wrap">'
+          +'<div style="flex:1;min-width:160px;padding:14px;background:#161b22;border-radius:8px;border:1px solid '+usCfg.border+'">'
+            +'<div style="font-size:9px;color:#6e7681;margin-bottom:6px" class="mono">🇺🇸 米国（世界の先行指標）</div>'
+            +'<div style="font-size:22px;font-weight:800;color:'+usCfg.color+'">'+usCfg.emoji+' '+usCfg.ja+'</div>'
+            +'<div style="font-size:11px;color:#8b949e;margin-top:4px;line-height:1.7">'+usCfg.tagline+'</div>'
+            +'<div style="margin-top:8px;font-size:10px;color:#6e7681" class="mono">スコア '+usScore+'/100</div>'
+          +'</div>'
+          +'<div style="flex:1;min-width:160px;padding:14px;background:#161b22;border-radius:8px;border:1px solid '+jpCfg2.border+'">'
+            +'<div style="font-size:9px;color:#6e7681;margin-bottom:6px" class="mono">🇯🇵 日本（独自サイクル）</div>'
+            +'<div style="font-size:22px;font-weight:800;color:'+jpCfg2.color+'">'+jpCfg2.emoji+' '+jpCfg2.ja+'</div>'
+            +'<div style="font-size:11px;color:#8b949e;margin-top:4px;line-height:1.7">'+jpCfg2.tagline+'</div>'
+            +'<div style="margin-top:8px;font-size:10px;color:#6e7681" class="mono">スコア '+jpScore+'/100</div>'
+          +'</div>'
+        +'</div>'
+        +(usSea!==jpSea?'<div style="margin-top:12px;padding:10px 14px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.2);border-radius:8px;font-size:11px;color:#58a6ff;line-height:1.8">💡 サイクルがズレています。米国の動向は6〜12ヶ月遅れで日本に波及することが多い。</div>':"")
+      +'</div>'
+      +'<div class="card">'
+        +'<div style="font-size:13px;font-weight:700;margin-bottom:14px">日本の主要数値</div>'
+        +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
+          +(jpSpv!==null?'<div style="flex:1;min-width:140px;padding:14px;background:#161b22;border-radius:8px;border:1px solid '+safeS(RULES.jp_spread(jpSpv)).border+'">'
+            +'<div style="font-size:9px;color:#6e7681;margin-bottom:4px">JGB10年 − コールレート</div>'
+            +'<div style="font-size:24px;font-weight:700;color:'+safeS(RULES.jp_spread(jpSpv)).color+'" class="mono">'+jpSpv.toFixed(2)+'%</div>'
+            +'<div style="font-size:10px;color:#8b949e;margin-top:4px">長短金利差</div>'
+          +'</div>':"")
+          +(usdjpv!==null?'<div style="flex:1;min-width:140px;padding:14px;background:#161b22;border-radius:8px;border:1px solid '+safeS(RULES.usdjpy(usdjpv)).border+'">'
+            +'<div style="font-size:9px;color:#6e7681;margin-bottom:4px">USD/JPY</div>'
+            +'<div style="font-size:24px;font-weight:700;color:'+safeS(RULES.usdjpy(usdjpv)).color+'" class="mono">'+usdjpv.toFixed(1)+'円</div>'
+            +'<div style="font-size:10px;color:#8b949e;margin-top:4px">ドル円レート</div>'
+          +'</div>':"")
+        +'</div>'
+      +'</div>'
+      +'<div style="background:'+jpCfg.bg+';border:1px solid '+jpCfg.border+';border-radius:10px;padding:20px">'
+        +'<div style="font-size:9px;color:'+jpCfg.color+';letter-spacing:0.14em;margin-bottom:10px;opacity:0.8" class="mono">🇯🇵 日本版 投資チェックリスト</div>'
+        +'<div style="font-size:13px;font-weight:700;color:#e6edf3;margin-bottom:14px">現在の日本サイクル（'+jpCfg.ja+'）で意識すること</div>'
+        +clH
+        +'<div style="margin-top:14px;font-size:9px;color:#484f58;line-height:1.9" class="mono">✅ 有利 · ⛔ 注意 · 💡 情報 — 参考情報であり投資助言ではありません</div>'
+      +'</div>';
+
+    // 指標詳細タブ
+    TC=100;
+    var detH=INDS.map(function(m){
+      var s=data[m.key]; if(!s||!s.length) return "";
+      var v=s[s.length-1].value, prev=s.length>1?s[s.length-2]:null, delta=prev?v-prev.value:0;
+      var sk=gsn(m.key,v), cfg2=safeS(sk);
+      return '<div class="detail-card" style="border-color:'+cfg2.border+'">'
+        +'<div class="detail-hdr" onclick="tdg(\''+m.key+'\')">'
+          +'<div style="flex:1">'
+            +'<div style="font-size:9px;color:#6e7681;margin-bottom:2px">'+m.sub+'</div>'
+            +'<div style="font-size:14px;font-weight:700;margin-bottom:4px">'+(m.term?tip(m.term,m.label):m.label)+'</div>'
+            +'<div style="font-size:11px;color:#8b949e;line-height:1.7">'+m.ex(v)+'</div>'
+          +'</div>'
+          +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:14px;flex-shrink:0">'
+            +'<span style="font-size:18px">'+cfg2.emoji+'</span>'
+            +'<span style="font-size:11px;color:'+(delta>=0?"#4ade80":"#f87171")+'" class="mono">'+(delta>=0?"▲":"▼")+Math.abs(delta).toFixed(2)+'</span>'
+            +'<span style="font-size:9px;color:#6e7681" id="tg-'+m.key+'">▼ チャート</span>'
+          +'</div>'
+        +'</div>'
+        +'<div class="detail-body hidden" id="body-'+m.key+'">'
+          +'<div class="chart-container" id="chart-'+m.key+'"></div>'
+        +'</div>'
+      +'</div>';
+    }).join("");
+    document.getElementById("tab-detail").innerHTML =
+      '<div class="card" style="padding:12px 16px"><div style="font-size:12px;color:#8b949e;line-height:1.9">各指標をクリックするとチャートが開きます。</div></div>'+detH;
+
+    // 用語集タブ
+    var glossH=Object.keys(GL).map(function(term){
+      var def=GL[term], id="g"+term.replace(/[^a-zA-Z]/g,"");
+      return '<div class="gloss-card">'
+        +'<div class="gloss-hdr" onclick="glg(\''+id+'\')">'
+          +'<div><div style="font-size:13px;font-weight:700">'+term+'</div>'
+          +'<div style="font-size:11px;color:#58a6ff;margin-top:3px">'+def.simple+'</div></div>'
+          +'<span style="color:#6e7681;font-size:12px" id="ar-'+id+'">▼</span>'
+        +'</div>'
+        +'<div class="gloss-body hidden" id="'+id+'">'
+          +'<div style="font-size:12px;color:#8b949e;line-height:2;margin-top:12px;margin-bottom:10px">'+def.explain+'</div>'
+          +'<div style="padding:10px 14px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.15);border-radius:8px;font-size:11px;color:#58a6ff;line-height:1.8">💡 わかりやすく言うと…<br>'+def.analogy+'</div>'
+        +'</div>'
+      +'</div>';
+    }).join("");
+    document.getElementById("tab-glossary").innerHTML =
+      '<div class="card" style="padding:12px 16px"><div style="font-size:12px;color:#8b949e;line-height:1.9">知らない言葉が出てきたらここで確認できます。クリックで開閉します。</div></div>'+glossH;
+
+  } catch(err) {
+    document.getElementById("tab-today").innerHTML =
+      '<div class="error-box">表示エラーが発生しました。\n\n詳細: '+err.message+'\n\n↺ 更新ボタンを押してリトライしてください。</div>';
+    console.error("renderAll error:", err);
   }
-
-  var indH=INDS.map(function(m){
-    var s=data[m.key]; if(!s||!s.length) return "";
-    var v=s[s.length-1].value, sk=gsn(m.key,v), ic=S[sk];
-    return '<div class="ind-card" style="border-color:'+ic.border+'">'
-      +'<div style="display:flex;justify-content:space-between;margin-bottom:6px">'
-        +'<div><div style="font-size:9px;color:#6e7681;margin-bottom:2px">'+m.sub+'</div>'
-        +'<div style="font-size:12px;font-weight:700">'+(m.term?tip(m.term,m.label):m.label)+'</div></div>'
-        +'<span style="font-size:16px">'+ic.emoji+'</span>'
-      +'</div>'
-      +'<div style="font-size:11px;color:#8b949e;line-height:1.8">'+m.ex(v)+'</div>'
-    +'</div>';
-  }).join("");
-
-  document.getElementById("tab-today").innerHTML=
-    '<div style="background:'+cfg.bg+';border:2px solid '+cfg.border+';border-radius:12px;padding:20px 22px">'
-      +'<div style="font-size:9px;color:'+cfg.color+';letter-spacing:0.18em;margin-bottom:8px;opacity:0.8" class="mono">総合・景気サイクル判定</div>'
-      +alertH
-      +parallelBanner
-      +diffAlert
-      +'<div style="margin-top:14px;background:rgba(0,0,0,0.3);border-radius:8px;padding:14px 16px">'
-        +'<div style="font-size:10px;color:#6e7681;margin-bottom:6px" class="mono">▶ 総合判定：今すべきこと</div>'
-        +'<div style="font-size:13px;line-height:1.9">'+cfg.action+'</div>'
-        +(cfg.warn?'<div style="font-size:12px;color:'+cfg.color+';margin-top:8px;opacity:0.9">⚠ '+cfg.warn+'</div>':"")
-      +'</div>'
-    +'</div>'
-    +'<div class="card">'
-      +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">判定の根拠となる7指標</div>'
-      +'<div style="font-size:12px;color:#8b949e;line-height:1.9;margin-bottom:16px">青い下線の用語はタップすると解説が出ます。</div>'
-      +'<div class="grid-2">'+indH+'</div>'
-    +'</div>';
-
-  // 日本の視点タブ
-  TC=50;
-  var cl = jpChecklist(data);
-  var jpCfg = S[cl.season];
-  var clH = cl.items.map(function(item){
-    var icon = item.ok===true?"✅":item.ok===false?"⛔":"💡";
-    var col  = item.ok===true?"#e6edf3":item.ok===false?"#8b949e":"#58a6ff";
-    return '<div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-start">'
-      +'<span style="font-size:16px;flex-shrink:0;margin-top:1px">'+icon+'</span>'
-      +'<span style="font-size:13px;color:'+col+';line-height:1.8">'+item.text+'</span>'
-    +'</div>';
-  }).join("");
-
-  var jpSpv=(data.jp_spread&&data.jp_spread.length)?data.jp_spread[data.jp_spread.length-1].value:null;
-  var usdjpv=(data.usdjpy&&data.usdjpy.length)?data.usdjpy[data.usdjpy.length-1].value:null;
-
-  document.getElementById("tab-japan").innerHTML=
-    // 日本の季節バナー
-    '<div style="background:'+jpCfg.bg+';border:2px solid '+jpCfg.border+';border-radius:12px;padding:20px 22px">'
-      +'<div style="font-size:9px;color:'+jpCfg.color+';letter-spacing:0.18em;margin-bottom:8px;opacity:0.8" class="mono">🇯🇵 日本の景気サイクル判定</div>'
-      +'<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">'
-        +'<div style="font-size:48px;line-height:1">'+jpCfg.emoji+'</div>'
-        +'<div><div style="font-size:32px;font-weight:800;color:'+jpCfg.color+';line-height:1">'+jpCfg.ja+'</div>'
-        +'<div style="font-size:13px;color:#8b949e;margin-top:4px">'+jpCfg.tagline+'</div></div>'
-      +'</div>'
-    +'</div>'
-    // 米日比較
-    +'<div class="card">'
-      +'<div style="font-size:13px;font-weight:700;margin-bottom:12px">🇺🇸 米国 vs 🇯🇵 日本 ─ 今の位置</div>'
-      +'<div style="display:flex;gap:12px;flex-wrap:wrap">'
-        +'<div style="flex:1;min-width:180px;padding:14px;background:#161b22;border-radius:8px;border:1px solid '+S[usSea].border+'">'
-          +'<div style="font-size:9px;color:#6e7681;margin-bottom:6px" class="mono">🇺🇸 米国（世界の先行指標）</div>'
-          +'<div style="font-size:24px;font-weight:800;color:'+S[usSea].color+'">'+S[usSea].emoji+' '+S[usSea].ja+'</div>'
-          +'<div style="font-size:11px;color:#8b949e;margin-top:4px;line-height:1.7">'+S[usSea].tagline+'</div>'
-          +(jpSpv!==null?'<div style="margin-top:8px;font-size:10px;color:#6e7681" class="mono">スコア '+usScore+'/100</div>':"")
-        +'</div>'
-        +'<div style="flex:1;min-width:180px;padding:14px;background:#161b22;border-radius:8px;border:1px solid '+S[jpSea].border+'">'
-          +'<div style="font-size:9px;color:#6e7681;margin-bottom:6px" class="mono">🇯🇵 日本（独自サイクル）</div>'
-          +'<div style="font-size:24px;font-weight:800;color:'+S[jpSea].color+'">'+S[jpSea].emoji+' '+S[jpSea].ja+'</div>'
-          +'<div style="font-size:11px;color:#8b949e;margin-top:4px;line-height:1.7">'+S[jpSea].tagline+'</div>'
-          +(jpSpv!==null?'<div style="margin-top:8px;font-size:10px;color:#6e7681" class="mono">スコア '+jpScore+'/100</div>':"")
-        +'</div>'
-      +'</div>'
-      +(usSea!==jpSea?'<div style="margin-top:12px;padding:10px 14px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.2);border-radius:8px;font-size:11px;color:#58a6ff;line-height:1.8">💡 サイクルがズレています。米国の動向は6〜12ヶ月遅れで日本に波及することが多い。</div>':"")
-    +'</div>'
-    // 主要指標
-    +'<div class="card">'
-      +'<div style="font-size:13px;font-weight:700;margin-bottom:14px">日本の主要数値</div>'
-      +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
-        +(jpSpv!==null?'<div style="flex:1;min-width:160px;padding:14px;background:#161b22;border-radius:8px;border:1px solid '+S[RULES.jp_spread(jpSpv)].border+'">'
-          +'<div style="font-size:9px;color:#6e7681;margin-bottom:4px">JGB10年 − コールレート</div>'
-          +'<div style="font-size:24px;font-weight:700;color:'+S[RULES.jp_spread(jpSpv)].color+'" class="mono">'+jpSpv.toFixed(2)+'%</div>'
-          +'<div style="font-size:10px;color:#8b949e;margin-top:4px">長短金利差</div>'
-        +'</div>':"")
-        +(usdjpv!==null?'<div style="flex:1;min-width:160px;padding:14px;background:#161b22;border-radius:8px;border:1px solid '+S[RULES.usdjpy(usdjpv)].border+'">'
-          +'<div style="font-size:9px;color:#6e7681;margin-bottom:4px">USD/JPY</div>'
-          +'<div style="font-size:24px;font-weight:700;color:'+S[RULES.usdjpy(usdjpv)].color+'" class="mono">'+usdjpv.toFixed(1)+'円</div>'
-          +'<div style="font-size:10px;color:#8b949e;margin-top:4px">ドル円レート</div>'
-        +'</div>':"")
-      +'</div>'
-    +'</div>'
-    // チェックリスト
-    +'<div style="background:'+jpCfg.bg+';border:1px solid '+jpCfg.border+';border-radius:10px;padding:20px">'
-      +'<div style="font-size:9px;color:'+jpCfg.color+';letter-spacing:0.14em;margin-bottom:10px;opacity:0.8" class="mono">🇯🇵 日本版 投資チェックリスト</div>'
-      +'<div style="font-size:13px;font-weight:700;color:#e6edf3;margin-bottom:14px">現在の日本サイクル（'+jpCfg.ja+'）で意識すること</div>'
-      +clH
-      +'<div style="margin-top:14px;font-size:9px;color:#484f58;line-height:1.9" class="mono">✅ 有利 · ⛔ 注意 · 💡 情報 ─ 参考情報であり投資助言ではありません</div>'
-    +'</div>';
-
-  // 指標詳細タブ
-  TC=100;
-  var detH=INDS.map(function(m){
-    var s=data[m.key]; if(!s||!s.length) return "";
-    var v=s[s.length-1].value, prev=s.length>1?s[s.length-2]:null, delta=prev?v-prev.value:0;
-    var sk=gsn(m.key,v), cfg2=S[sk];
-    return '<div class="detail-card" style="border-color:'+cfg2.border+'">'
-      +'<div class="detail-hdr" onclick="tdg(\''+m.key+'\')">'
-        +'<div style="flex:1">'
-          +'<div style="font-size:9px;color:#6e7681;margin-bottom:2px">'+m.sub+'</div>'
-          +'<div style="font-size:14px;font-weight:700;margin-bottom:4px">'+(m.term?tip(m.term,m.label):m.label)+'</div>'
-          +'<div style="font-size:11px;color:#8b949e;line-height:1.7">'+m.ex(v)+'</div>'
-        +'</div>'
-        +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:14px;flex-shrink:0">'
-          +'<span style="font-size:18px">'+cfg2.emoji+'</span>'
-          +'<span style="font-size:11px;color:'+(delta>=0?"#4ade80":"#f87171")+'" class="mono">'+(delta>=0?"▲":"▼")+Math.abs(delta).toFixed(2)+'</span>'
-          +'<span style="font-size:9px;color:#6e7681" id="tg-'+m.key+'">▼ チャート</span>'
-        +'</div>'
-      +'</div>'
-      +'<div class="detail-body hidden" id="body-'+m.key+'">'
-        +'<div class="chart-container" id="chart-'+m.key+'"></div>'
-      +'</div>'
-    +'</div>';
-  }).join("");
-  document.getElementById("tab-detail").innerHTML=
-    '<div class="card" style="padding:12px 16px"><div style="font-size:12px;color:#8b949e;line-height:1.9">各指標をクリックするとチャートが開きます。</div></div>'+detH;
-
-  // 用語集
-  var glossH=Object.keys(GL).map(function(term){
-    var def=GL[term], id="g"+term.replace(/[^a-zA-Z]/g,"");
-    return '<div class="gloss-card">'
-      +'<div class="gloss-hdr" onclick="glg(\''+id+'\')">'
-        +'<div><div style="font-size:13px;font-weight:700">'+term+'</div>'
-        +'<div style="font-size:11px;color:#58a6ff;margin-top:3px">'+def.simple+'</div></div>'
-        +'<span style="color:#6e7681;font-size:12px" id="ar-'+id+'">▼</span>'
-      +'</div>'
-      +'<div class="gloss-body hidden" id="'+id+'">'
-        +'<div style="font-size:12px;color:#8b949e;line-height:2;margin-top:12px;margin-bottom:10px">'+def.explain+'</div>'
-        +'<div style="padding:10px 14px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.15);border-radius:8px;font-size:11px;color:#58a6ff;line-height:1.8">💡 わかりやすく言うと…<br>'+def.analogy+'</div>'
-      +'</div>'
-    +'</div>';
-  }).join("");
-  document.getElementById("tab-glossary").innerHTML=
-    '<div class="card" style="padding:12px 16px"><div style="font-size:12px;color:#8b949e;line-height:1.9">知らない言葉が出てきたらここで確認できます。クリックで開閉します。</div></div>'+glossH;
 }
 
+// ─── データ取得 ───────────────────────────────────────────────
 async function loadData(){
   var btn=document.getElementById("refresh-btn");
   if(btn){btn.disabled=true;btn.textContent="取得中…";}
@@ -552,9 +541,12 @@ async function loadData(){
     if(!res.ok) throw new Error("HTTP "+res.status);
     var json=await res.json();
     if(json.error) throw new Error(json.error);
-    renderAll(json.data||{},json.updated||null);
+    var d = json.data || {};
+    if(Object.keys(d).length === 0) throw new Error("データが空です。GASでfetchAndStoreを実行してください。");
+    renderAll(d, json.updated||null);
   }catch(e){
-    document.getElementById("tab-today").innerHTML='<div class="error-box">データ取得失敗。\n\n詳細: '+e.message+'</div>';
+    document.getElementById("tab-today").innerHTML=
+      '<div class="error-box">データ取得失敗。\n\n詳細: '+e.message+'</div>';
   }finally{
     if(btn){btn.disabled=false;btn.textContent="↺ 更新";}
   }
